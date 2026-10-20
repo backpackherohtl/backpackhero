@@ -965,8 +965,10 @@ footer{padding:72px 0 40px}
       v = (v || '').trim(); var m;
       if((m = v.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})?$/))){ var y = m[3] ? +m[3] : new Date().getFullYear(); if(y < 100) y += 2000; return new Date(y, m[2]-1, +m[1]); }
       if((m = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return new Date(+m[1], m[2]-1, +m[3]);
+      if((m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) return new Date(+m[3], m[1]-1, +m[2]);
       return null;
     }
+    function zeit(v){ v = (v || '').trim(); var m = v.match(/^(\d{1,2})[:.](\d{2})(:\d{2})?$/); return m ? (+m[1]) + ':' + m[2] : v; }
     var TAGE = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
     function el(tag, cls, text){ var e = document.createElement(tag); if(cls) e.className = cls; if(text) e.textContent = text; return e; }
     fetch(TERMINE_CSV, {cache:'no-store'}).then(function(r){ if(!r.ok) throw 0; return r.text(); }).then(function(t){
@@ -976,7 +978,7 @@ footer{padding:72px 0 40px}
       var iD = col('datum'), iV = col('von'), iB = col('bis'), iO = col('ort'), iI = col('info'), iA = col('anzeigen');
       var heute = new Date(); heute.setHours(0,0,0,0);
       var ts = rows.slice(1).map(function(r){
-        return { d: parseDate(r[iD]), von: (r[iV]||'').trim(), bis: (r[iB]||'').trim(), ort: (r[iO]||'').trim(), info: iI>-1 ? (r[iI]||'').trim() : '', an: iA>-1 ? (r[iA]||'').trim().toLowerCase() : '' };
+        return { d: parseDate(r[iD]), von: zeit(r[iV]), bis: zeit(r[iB]), ort: (r[iO]||'').trim(), info: iI>-1 ? (r[iI]||'').trim() : '', an: iA>-1 ? (r[iA]||'').trim().toLowerCase() : '' };
       }).filter(function(x){ return x.d && x.d >= heute && x.an !== 'nein' && x.ort; })
         .sort(function(a,b){ return a.d - b.d; }).slice(0, 6);
       if(!ts.length) return;
