@@ -944,7 +944,7 @@ footer{padding:72px 0 40px}
      Tabelle: Datei > Freigeben > Im Web veröffentlichen > Tabellenblatt > CSV. Den Link hier eintragen.
      Spalten: Datum | Von | Bis | Ort | Info | Anzeigen   (Datum als 24.10.2026, Anzeigen leer oder "nein")
      Vergangene Termine verschwinden automatisch. */
-  var TERMINE_CSV = '';
+  var TERMINE_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSdaM8XlX14x4VfH7WVJkoNu_Q518RQdo1yN_TrTnbQSnaLbMIOhdHWnRMZuJhE3yQPdmGXR4oNEczb/pub?output=csv';
   (function(){
     if(!TERMINE_CSV) return;
     var list = document.getElementById('termineList'), leer = document.getElementById('termineLeer'), note = document.getElementById('termineNote');
@@ -973,7 +973,7 @@ footer{padding:72px 0 40px}
     function el(tag, cls, text){ var e = document.createElement(tag); if(cls) e.className = cls; if(text) e.textContent = text; return e; }
     fetch(TERMINE_CSV, {cache:'no-store'}).then(function(r){ if(!r.ok) throw 0; return r.text(); }).then(function(t){
       var rows = parseCSV(t); if(rows.length < 2) return;
-      var h = rows[0].map(function(x){ return x.trim().toLowerCase(); });
+      var h = rows[0].map(function(x){ return x.replace(/^\ufeff/, '').trim().toLowerCase(); });
       function col(name){ return h.indexOf(name); }
       var iD = col('datum'), iV = col('von'), iB = col('bis'), iO = col('ort'), iI = col('info'), iA = col('anzeigen');
       var heute = new Date(); heute.setHours(0,0,0,0);
