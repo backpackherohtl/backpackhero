@@ -148,19 +148,20 @@ async function sendMail(env, subject, text) {
 
 /* ---------- Cloudflare Access: Token prüfen ---------- */
 
-let certCache = { at: 0, keys: [] };
+const certCache = {};
 function b64urlBytes(s) {
   s = s.replace(/-/g, '+').replace(/_/g, '/');
   while (s.length % 4) s += '=';
   return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 }
 async function accessKeys(team) {
-  if (Date.now() - certCache.at < 3600_000 && certCache.keys.length) return certCache.keys;
+  const c = certCache[team];
+  if (c && Date.now() - c.at < 3600_000 && c.keys.length) return c.keys;
   const r = await fetch(`https://${team}/cdn-cgi/access/certs`);
   if (!r.ok) throw new Error('certs');
   const { keys } = await r.json();
-  certCache = { at: Date.now(), keys: keys || [] };
-  return certCache.keys;
+  certCache[team] = { at: Date.now(), keys: keys || [] };
+  return certCache[team].keys;
 }
 function cookie(req, name) {
   const c = req.headers.get('cookie') || '';
@@ -172,8 +173,8 @@ function cookie(req, name) {
 async function adminEmail(req, env) {
   // Nur für lokale Tests (wrangler dev mit .dev.vars). Wird nie mitveröffentlicht.
   if (env.DEV_ADMIN_EMAIL && new URL(req.url).hostname === 'localhost') return env.DEV_ADMIN_EMAIL;
-  const team = env.ACCESS_TEAM_DOMAIN, aud = env.ACCESS_AUD;
-  if (!team || !aud) return null; // nicht eingerichtet -> gesperrt
+  const teams = String(env.ACCESS_TEAM_DOMAIN || '').split(',').map((x) => x.trim()).filter(Boolean), aud = env.ACCESS_AUD;
+  if (!teams.length || !aud) return null; // nicht eingerichtet -> gesperrt
   const token = req.headers.get('cf-access-jwt-assertion') || cookie(req, 'CF_Authorization');
   if (!token) return null;
   const parts = token.split('.');
@@ -182,6 +183,9 @@ async function adminEmail(req, env) {
     const header = JSON.parse(new TextDecoder().decode(b64urlBytes(parts[0])));
     const payload = JSON.parse(new TextDecoder().decode(b64urlBytes(parts[1])));
     if (header.alg !== 'RS256') return null;
+    // Aussteller muss eines unserer Access-Teams sein, Schlüssel nur von genau diesem Team
+    const team = teams.find((t) => payload.iss === `https://${t}`);
+    if (!team) return null;
     const jwk = (await accessKeys(team)).find((k) => k.kid === header.kid);
     if (!jwk) return null;
     const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);

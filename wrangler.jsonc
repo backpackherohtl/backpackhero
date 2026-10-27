@@ -23,7 +23,8 @@
   "vars": {
     // Cloudflare Access: Team-Domain (z. B. backpackhero.cloudflareaccess.com) und AUD-Tag der Admin-Anwendung.
     // Solange leer, ist der Admin-Bereich komplett gesperrt.
-    "ACCESS_TEAM_DOMAIN": "small-wildflower-9b1f.cloudflareaccess.com",
+    // Mehrere Team-Domains mit Komma trennen (alter Name bis zur Bestätigung drin)
+    "ACCESS_TEAM_DOMAIN": "backpackhero.cloudflareaccess.com,small-wildflower-9b1f.cloudflareaccess.com",
     // Mehrere AUD-Tags mit Komma trennen (workers.dev und später backpackhero.at)
     "ACCESS_AUD": "90cba56a5d2b5a7291f42c2e7090e2688166545e50a56130b05ba563e5bd2de5",
     // Benachrichtigungen (funktionieren erst, wenn die Domain bei Cloudflare ist und Email Routing läuft)
