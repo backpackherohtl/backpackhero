@@ -5,6 +5,9 @@
   "name": "backpackhero",
   "main": "src/worker.js",
   "compatibility_date": "2026-10-27",
+  // Nur noch über backpackhero.at erreichbar, keine workers.dev- oder Vorschau-Adressen
+  "workers_dev": false,
+  "preview_urls": false,
   "assets": {
     "directory": "public",
     "binding": "ASSETS",
@@ -25,8 +28,8 @@
     // Solange leer, ist der Admin-Bereich komplett gesperrt.
     // Mehrere Team-Domains mit Komma trennen
     "ACCESS_TEAM_DOMAIN": "backpackhero.cloudflareaccess.com",
-    // Mehrere AUD-Tags mit Komma trennen: 1. workers.dev (ganze Seite), 2. backpackhero.at (/admin und /api/admin)
-    "ACCESS_AUD": "90cba56a5d2b5a7291f42c2e7090e2688166545e50a56130b05ba563e5bd2de5,38e08c6ff1c69345edba0922a554c7084d49117b34e90ac4c8c889c70b7bae16",
+    // AUD-Tag der Access-App „backpackhero.at“ (/admin und /api/admin). Mehrere mit Komma trennen
+    "ACCESS_AUD": "38e08c6ff1c69345edba0922a554c7084d49117b34e90ac4c8c889c70b7bae16",
     // Benachrichtigungen (funktionieren erst, wenn die Domain bei Cloudflare ist und Email Routing läuft)
     "NOTIFY_TO": "backpackherohtl@gmail.com",
     "MAIL_FROM": ""
