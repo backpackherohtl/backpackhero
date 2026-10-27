@@ -1,0 +1,35 @@
+// Cloudflare-Konfiguration für die Website von Backpack Hero.
+// Hier stehen keine Geheimnisse: Datenbank-ID, Access-Domain und AUD-Tag sind öffentlich unbedenklich.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "backpackhero",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-27",
+  "assets": {
+    "directory": "public",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    // Für Admin und Schnittstellen läuft immer zuerst der Worker (Login-Prüfung)
+    "run_worker_first": ["/api/*", "/admin", "/admin/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "backpackhero",
+      // Nach dem Anlegen der Datenbank im Cloudflare-Dashboard hier die ID eintragen
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  "vars": {
+    // Cloudflare Access: Team-Domain (z. B. backpackhero.cloudflareaccess.com) und AUD-Tag der Admin-Anwendung.
+    // Solange leer, ist der Admin-Bereich komplett gesperrt.
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": "",
+    // Benachrichtigungen (funktionieren erst, wenn die Domain bei Cloudflare ist und Email Routing läuft)
+    "NOTIFY_TO": "backpackherohtl@gmail.com",
+    "MAIL_FROM": ""
+  },
+  // Montag 7:00 UTC = 8:00 Winterzeit / 9:00 Sommerzeit in Wien
+  "triggers": { "crons": ["0 7 * * 1"] },
+  "observability": { "enabled": true }
+}

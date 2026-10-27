@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin · Backpack Hero</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 80'%3E%3Cpath d='M24 14 V10 A8 8 0 0 1 40 10 V14' fill='none' stroke='%2315171A' stroke-width='6'/%3E%3Crect x='4' y='14' width='56' height='62' rx='12' fill='%2315171A'/%3E%3Crect x='15' y='26' width='7' height='38' fill='%23C8412F'/%3E%3Crect x='28.5' y='26' width='7' height='38' fill='%232F7A4D'/%3E%3Crect x='42' y='26' width='7' height='38' fill='%23E2B13C'/%3E%3C/svg%3E">
+<style>
+@font-face{font-family:"Archivo";font-weight:400;font-display:swap;src:url(/fonts/archivo-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Archivo";font-weight:600;font-display:swap;src:url(/fonts/archivo-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Archivo";font-weight:800;font-display:swap;src:url(/fonts/archivo-latin-800-normal.woff2) format("woff2")}
+:root{--dunkel:#15171A;--hell:#F3F0E8;--hell-2:#E9E5DA;--linie:#D6D1C4;--text-2:#55514A;--rot:#C8412F;--gruen:#2F7A4D;--gelb:#E2B13C;--r:18px;--r-gross:28px}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--hell);color:var(--dunkel);font:400 16px/1.5 "Archivo",system-ui,sans-serif}
+a{color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{margin:0;letter-spacing:-.015em;line-height:1.1}
+h1{font-size:30px;font-weight:800}
+h2{font-size:21px;font-weight:800}
+h3{font-size:17px;font-weight:800}
+p{margin:0}
+.muted{color:var(--text-2)}
+.small{font-size:14px}
+
+/* Kopfzeile */
+.top{position:sticky;top:0;z-index:20;background:var(--dunkel);color:var(--hell)}
+.top-in{max-width:1240px;margin:0 auto;padding:0 20px;height:64px;display:flex;align-items:center;gap:16px}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--hell)}
+.brand b{font-size:15px;font-weight:800;letter-spacing:.06em}
+.brand span{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;background:var(--gelb);color:var(--dunkel);padding:3px 8px;border-radius:999px}
+.top .who{margin-left:auto;font-size:14px;color:#B7B2A6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40vw}
+.top a.lnk{font-size:14px;font-weight:600;color:var(--hell);text-decoration:none;padding:8px 12px;border-radius:999px;border:1.5px solid rgba(243,240,232,.25);white-space:nowrap}
+.top a.lnk:hover{background:rgba(243,240,232,.08)}
+
+/* Layout */
+.layout{max-width:1240px;margin:0 auto;padding:28px 20px 80px;display:grid;grid-template-columns:220px 1fr;gap:32px;align-items:start}
+nav.tabs{position:sticky;top:92px;display:grid;gap:4px}
+nav.tabs button{display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;border:0;background:transparent;padding:12px 14px;border-radius:14px;font-weight:600;color:var(--text-2);cursor:pointer;min-height:44px}
+nav.tabs button:hover{background:var(--hell-2);color:var(--dunkel)}
+nav.tabs button[aria-selected=true]{background:var(--dunkel);color:var(--hell)}
+nav.tabs .cnt{font-size:12px;font-weight:800;background:var(--rot);color:#fff;border-radius:999px;padding:1px 8px}
+nav.tabs .cnt:empty{display:none}
+main{min-width:0}
+.panel{display:grid;gap:20px}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.card{background:#fff;border:1px solid var(--linie);border-radius:var(--r-gross);padding:26px}
+.card > h2{margin-bottom:6px}
+.card > .muted{margin-bottom:18px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:end}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:end}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+
+/* Kennzahlen */
+.stat{background:#fff;border:1px solid var(--linie);border-radius:var(--r);padding:20px;display:grid;gap:4px;align-content:start}
+.stat .lbl{font-size:13px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-2)}
+.stat .val{font-size:30px;font-weight:800;line-height:1.1}
+.stat .sub{font-size:14px;color:var(--text-2)}
+.stat.dark{background:var(--dunkel);color:var(--hell);border-color:var(--dunkel)}
+.stat.dark .lbl,.stat.dark .sub{color:#B7B2A6}
+.pill{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:14px;padding:5px 12px;border-radius:999px;background:var(--hell-2)}
+.pill i{width:9px;height:9px;border-radius:50%;display:block}
+
+/* Formulare */
+form{display:grid;gap:16px}
+label{display:grid;gap:6px;font-size:14px;font-weight:600}
+label .hint{font-weight:400;color:var(--text-2)}
+input[type=text],input[type=email],input[type=date],input[type=time],input[type=number],input[type=url],select,textarea{background:var(--hell);border:1.5px solid var(--linie);border-radius:14px;padding:11px 14px;min-height:46px;width:100%;font-size:16px;font-weight:400}
+textarea{min-height:92px;resize:vertical;line-height:1.45}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--dunkel);background:#fff}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border-radius:999px;font-weight:600;border:2px solid var(--dunkel);background:var(--dunkel);color:var(--hell);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{opacity:.9}
+.btn.leer{background:transparent;color:var(--dunkel)}
+.btn.leer:hover{background:var(--hell-2)}
+.btn.rot{background:var(--rot);border-color:var(--rot)}
+.btn.klein{min-height:36px;padding:0 14px;font-size:14px}
+.btn:disabled{opacity:.5;cursor:default}
+.icon{width:36px;height:36px;border-radius:12px;border:1.5px solid var(--linie);background:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+.icon:hover{border-color:var(--dunkel)}
+.icon svg{width:18px;height:18px}
+
+/* Schalter */
+.switch{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border-radius:16px;background:var(--hell);cursor:pointer}
+.switch .txt{display:grid;gap:2px}
+.switch .txt b{font-weight:700}
+.switch .txt span{font-size:14px;font-weight:400;color:var(--text-2)}
+.switch input{appearance:none;-webkit-appearance:none;width:52px;height:30px;border-radius:999px;background:var(--linie);position:relative;cursor:pointer;flex:none;transition:background .15s;margin:0}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .15s}
+.switch input:checked{background:var(--gruen)}
+.switch input:checked::after{transform:translateX(22px)}
+.switch input:focus-visible{outline:2px solid var(--dunkel);outline-offset:2px}
+
+/* Listen */
+.list{display:grid;gap:10px}
+.item{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;background:#fff;border:1px solid var(--linie);border-radius:var(--r);padding:14px 16px}
+.item.alt{opacity:.55}
+.item .date{width:64px;text-align:center;border-radius:14px;background:var(--hell);padding:8px 4px}
+.item .date b{display:block;font-size:22px;font-weight:800;line-height:1}
+.item .date span{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-2)}
+.item .main{min-width:0;display:grid;gap:2px}
+.item .main b{font-size:16px}
+.item .acts{display:flex;gap:6px}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--hell-2);color:var(--text-2);vertical-align:middle;margin-left:6px}
+.empty{padding:28px;text-align:center;color:var(--text-2);background:#fff;border:1px dashed var(--linie);border-radius:var(--r)}
+
+/* Tabellen */
+.tablewrap{overflow-x:auto;border:1px solid var(--linie);border-radius:var(--r);background:#fff}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--hell-2);vertical-align:top}
+th{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-2);background:var(--hell);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* Bestellungen */
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1.5px solid var(--linie);background:#fff;border-radius:999px;padding:7px 14px;font-weight:600;font-size:14px;cursor:pointer;display:inline-flex;gap:8px;align-items:center;min-height:40px}
+.chip[aria-pressed=true]{background:var(--dunkel);color:var(--hell);border-color:var(--dunkel)}
+.chip small{font-weight:800}
+.order{background:#fff;border:1px solid var(--linie);border-radius:var(--r)}
+.order summary{list-style:none;display:grid;grid-template-columns:130px 1fr auto auto;gap:14px;align-items:center;padding:14px 16px;cursor:pointer}
+.order summary::-webkit-details-marker{display:none}
+.order .nr{font-weight:800;font-variant-numeric:tabular-nums}
+.order .body{padding:0 16px 18px;display:grid;gap:14px;border-top:1px solid var(--hell-2);padding-top:16px}
+.order dl{margin:0;display:grid;grid-template-columns:140px 1fr;gap:6px 14px;font-size:15px}
+.order dt{color:var(--text-2)}
+.order dd{margin:0;overflow-wrap:anywhere}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.st i{width:8px;height:8px;border-radius:50%;display:block}
+.st-neu{background:#F7E3DF;color:#93301F}.st-neu i{background:var(--rot)}
+.st-bezahlt{background:#F8EDD1;color:#7A5A12}.st-bezahlt i{background:var(--gelb)}
+.st-versendet,.st-abgeholt{background:#DCEBE1;color:#215A38}.st-versendet i,.st-abgeholt i{background:var(--gruen)}
+.st-storniert{background:var(--hell-2);color:var(--text-2)}.st-storniert i{background:#9E988B}
+
+/* Protokoll */
+.log{display:grid;gap:0}
+.log .e{display:grid;grid-template-columns:150px 1fr;gap:14px;padding:12px 0;border-bottom:1px solid var(--hell-2)}
+.log .e:last-child{border-bottom:0}
+.log .when{font-size:14px;color:var(--text-2);font-variant-numeric:tabular-nums}
+.log .what b{display:block}
+.log .what pre{margin:4px 0 0;white-space:pre-wrap;font:inherit;font-size:14px;color:var(--text-2)}
+
+/* Meldungen */
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--dunkel);color:var(--hell);padding:12px 20px;border-radius:999px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.2);transition:all .25s;z-index:50;max-width:calc(100% - 32px)}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--rot)}
+.note{border-radius:16px;padding:14px 16px;background:#F8EDD1;font-size:15px}
+.loading{padding:60px;text-align:center;color:var(--text-2)}
+
+@media (max-width:960px){
+  .layout{grid-template-columns:1fr;padding-top:16px}
+  nav.tabs{position:static;display:flex;overflow-x:auto;gap:6px;padding-bottom:6px;margin:0 -20px;padding-left:20px;padding-right:20px;scrollbar-width:none}
+  nav.tabs button{white-space:nowrap;flex:none}
+  .grid4{grid-template-columns:1fr 1fr}
+  .grid3,.grid2{grid-template-columns:1fr}
+  .top .who{display:none}
+}
+@media (max-width:620px){
+  .card{padding:20px}
+  .order summary{grid-template-columns:1fr auto;grid-template-areas:"nr st" "nm nm";row-gap:4px}
+  .order summary .nr{grid-area:nr}.order summary .nm{grid-area:nm}.order summary .st{grid-area:st;justify-self:end}
+  .brand b{font-size:13px;white-space:nowrap}
+  .order summary .hide-m{display:none}
+  .order dl{grid-template-columns:1fr}
+  .order dt{margin-top:6px}
+  .log .e{grid-template-columns:1fr;gap:2px}
+  .item{grid-template-columns:auto 1fr}
+  .item .acts{grid-column:1/-1;justify-content:flex-end}
+  h1{font-size:26px}
+  .top a.lnk.web{display:none}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <a class="brand" href="/admin/">
+      <svg width="24" height="30" viewBox="0 0 64 80" aria-hidden="true"><path d="M24 14 V10 A8 8 0 0 1 40 10 V14" fill="none" stroke="#F3F0E8" stroke-width="5"/><rect x="4" y="14" width="56" height="62" rx="12" fill="#F3F0E8"/><rect x="16" y="26" width="5" height="38" rx="1" fill="#C8412F"/><rect x="29.5" y="26" width="5" height="38" rx="1" fill="#2F7A4D"/><rect x="43" y="26" width="5" height="38" rx="1" fill="#E2B13C"/></svg>
+      <b>BACKPACK HERO</b><span>Admin</span>
+    </a>
+    <div class="who" id="who"></div>
+    <a class="lnk web" href="/" target="_blank" rel="noopener">Zur Website</a>
+    <a class="lnk" href="/cdn-cgi/access/logout">Abmelden</a>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="tabs" role="tablist" aria-label="Bereiche">
+    <button role="tab" data-tab="uebersicht" aria-selected="true">Übersicht</button>
+    <button role="tab" data-tab="termine">Termine</button>
+    <button role="tab" data-tab="verkauf">Verkauf</button>
+    <button role="tab" data-tab="bestellungen">Bestellungen <span class="cnt" id="cntNeu"></span></button>
+    <button role="tab" data-tab="mailliste">Mail-Liste</button>
+    <button role="tab" data-tab="texte">Texte &amp; Banner</button>
+    <button role="tab" data-tab="protokoll">Protokoll</button>
+  </nav>
+
+  <main id="main"><div class="loading">Wird geladen …</div></main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ---------- Werkzeuge ---------- */
+  function h(tag, attrs){
+    var e = document.createElement(tag);
+    if(attrs) for(var k in attrs){
+      var v = attrs[k];
+      if(v === null || v === undefined || v === false) continue;
+      if(k === 'class') e.className = v;
+      else if(k === 'text') e.textContent = v;
+      else if(k.slice(0,2) === 'on') e.addEventListener(k.slice(2), v);
+      else if(v === true) e.setAttribute(k, '');
+      else e.setAttribute(k, v);
+    }
+    for(var i = 2; i < arguments.length; i++){
+      var c = arguments[i];
+      if(c === null || c === undefined || c === false) continue;
+      if(Array.isArray(c)) c.forEach(function(x){ if(x) e.appendChild(typeof x === 'string' ? document.createTextNode(x) : x); });
+      else e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    }
+    return e;
+  }
+  function svg(d){ var s = document.createElementNS('http://www.w3.org/2000/svg','svg'); s.setAttribute('viewBox','0 0 24 24'); s.setAttribute('fill','none'); s.setAttribute('stroke','currentColor'); s.setAttribute('stroke-width','2'); s.setAttribute('stroke-linecap','round'); s.setAttribute('stroke-linejoin','round'); s.setAttribute('aria-hidden','true'); s.innerHTML = d; return s; }
+  var I = {
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>',
+    del: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+    eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    eyeoff: '<path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'
+  };
+  function icon(name, label, onclick){ return h('button', {class:'icon', type:'button', 'aria-label':label, title:label, onclick:onclick}, svg(I[name])); }
+  var toastT;
+  function toast(t, err){ var e = document.getElementById('toast'); e.textContent = t; e.className = 'toast on' + (err ? ' err' : ''); clearTimeout(toastT); toastT = setTimeout(function(){ e.className = 'toast'; }, 3200); }
+  function api(method, path, body){
+    return fetch('/api/admin/' + path, {
+      method: method, credentials: 'same-origin',
+      headers: body ? {'content-type':'application/json','x-bh-admin':'1'} : {'x-bh-admin':'1'},
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function(r){
+      if(r.status === 401 || r.status === 403){ toast('Sitzung abgelaufen. Seite wird neu geladen …', true); setTimeout(function(){ location.reload(); }, 1500); throw new Error('auth'); }
+      return r.json().then(function(j){ if(!j.ok && j.error){ throw new Error(j.error); } return j; });
+    });
+  }
+  function fail(e){ if(e && e.message !== 'auth') toast(e.message || 'Fehler beim Speichern.', true); }
+  var TAGE = ['So','Mo','Di','Mi','Do','Fr','Sa'], MON = ['Jän','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  function d8(iso){ var p = iso.split('-'); return new Date(+p[0], p[1]-1, +p[2]); }
+  function dat(iso){ var d = d8(iso); return TAGE[d.getDay()] + ', ' + d.getDate() + '. ' + MON[d.getMonth()] + ' ' + d.getFullYear(); }
+  function ts(iso){ var d = new Date(iso); return d.toLocaleDateString('de-AT', {day:'2-digit', month:'2-digit', year:'numeric'}) + ' ' + d.toLocaleTimeString('de-AT', {hour:'2-digit', minute:'2-digit'}); }
+  function euro(c){ return c === null || c === undefined ? '' : (c / 100).toFixed(2).replace('.', ',') + ' €'; }
+  function wer(e){ return (e || '').replace(/@.*/, ''); }
+  function download(name, text, type){ var a = h('a', {href: URL.createObjectURL(new Blob([text], {type: type})), download: name}); document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+  function csv(rows){ return '﻿' + rows.map(function(r){ return r.map(function(v){ v = v === null || v === undefined ? '' : String(v); if(/^[=+\-@]/.test(v)) v = "'" + v; return /[";\n,]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(';'); }).join('\r\n'); }
+  function sw(name, title, sub, checked){
+    return h('label', {class:'switch'}, h('span', {class:'txt'}, h('b', {text:title}), sub ? h('span', {text:sub}) : null), h('input', {type:'checkbox', name:name, role:'switch', checked: !!checked}));
+  }
+  function field(label, input, hint){ return h('label', null, h('span', null, label, hint ? h('span', {class:'hint', text:' ' + hint}) : null), input); }
+  function inp(name, value, attrs){ var a = {type:'text', name:name, value: value || ''}; for(var k in attrs) a[k] = attrs[k]; return h('input', a); }
+
+  /* ---------- Zustand ---------- */
+  var D = null, tab = 'uebersicht', main = document.getElementById('main');
+  var STATUS = [['neu','Neu'],['bezahlt','Bezahlt'],['versendet','Versendet'],['abgeholt','Abgeholt'],['storniert','Storniert']];
+  function status(s){ var l = STATUS.filter(function(x){ return x[0] === s; })[0]; return h('span', {class:'st st-' + s}, h('i'), l ? l[1] : s); }
+
+  function load(){
+    return api('GET', 'data').then(function(d){
+      D = d;
+      document.getElementById('who').textContent = 'Angemeldet als ' + d.email;
+      var neu = (d.bestellungen.filter(function(x){ return x.status === 'neu'; })[0] || {}).n || 0;
+      document.getElementById('cntNeu').textContent = neu ? neu : '';
+      render();
+    }).catch(function(e){ if(e.message !== 'auth') main.innerHTML = '<div class="empty">Konnte die Daten nicht laden. Bitte Seite neu laden.</div>'; });
+  }
+  function render(){
+    main.innerHTML = '';
+    var p = ({uebersicht: pUebersicht, termine: pTermine, verkauf: pVerkauf, bestellungen: pBestellungen, mailliste: pMailliste, texte: pTexte, protokoll: pProtokoll})[tab]();
+    main.appendChild(p);
+  }
+  document.querySelectorAll('nav.tabs button').forEach(function(b){
+    b.addEventListener('click', function(){
+      tab = b.getAttribute('data-tab');
+      document.querySelectorAll('nav.tabs button').forEach(function(x){ x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
+      try { history.replaceState(null, '', '#' + tab); } catch(e){}
+      if(D) render(); window.scrollTo(0, 0);
+    });
+  });
+  var start = (location.hash || '').slice(1);
+  if(start){ var sb = document.querySelector('nav.tabs button[data-tab="' + start + '"]'); if(sb){ tab = start; document.querySelectorAll('nav.tabs button').forEach(function(x){ x.setAttribute('aria-selected', x === sb ? 'true' : 'false'); }); } }
+  function go(t){ document.querySelector('nav.tabs button[data-tab="' + t + '"]').click(); }
+  window.addEventListener('hashchange', function(){ var t = (location.hash || '').slice(1); if(t && t !== tab && document.querySelector('nav.tabs button[data-tab="' + t + '"]')) go(t); });
+
+  /* ---------- Übersicht ---------- */
+  function modus(s){
+    var stock = s.stueck_verfuegbar === '' ? null : +s.stueck_verfuegbar;
+    if(s.ausverkauft === '1' || (stock !== null && stock <= 0)) return ['Ausverkauft', 'var(--rot)'];
+    if(s.bestellen_offen === '1') return ['Bestellen offen', 'var(--gruen)'];
+    return ['Mail-Liste (bald bestellbar)', 'var(--gelb)'];
+  }
+  function pUebersicht(){
+    var s = D.s, m = modus(s);
+    var kommende = D.termine.filter(function(t){ return t.datum >= D.heute && t.sichtbar; }).sort(function(a,b){ return a.datum < b.datum ? -1 : 1; });
+    var offen = D.bestellungen.filter(function(x){ return x.status === 'neu' || x.status === 'bezahlt'; }).reduce(function(a,x){ return a + x.n; }, 0);
+    var neu = (D.bestellungen.filter(function(x){ return x.status === 'neu'; })[0] || {}).n || 0;
+    return h('div', {class:'panel'},
+      h('div', {class:'head'}, h('div', null, h('h1', {text:'Hallo ' + wer(D.email) + '!'}), h('p', {class:'muted', text:'So steht die Website gerade da.'})),
+        h('button', {class:'btn leer', type:'button', onclick: function(){ window.location.href = '/api/admin/export'; }}, 'Sicherung herunterladen')),
+      h('div', {class:'grid4'},
+        h('div', {class:'stat dark'}, h('span', {class:'lbl', text:'Website-Modus'}), h('span', {class:'pill', style:'background:rgba(243,240,232,.1);color:var(--hell);margin-top:6px;justify-self:start'}, h('i', {style:'background:' + m[1]}), m[0]), h('a', {href:'#verkauf', class:'sub', style:'margin-top:8px', onclick:function(e){ e.preventDefault(); go('verkauf'); }, text:'Ändern →'})),
+        h('div', {class:'stat'}, h('span', {class:'lbl', text:'Mail-Liste'}), h('span', {class:'val', text: String(D.mailliste.gesamt)}), h('span', {class:'sub', text: '+' + D.mailliste.woche + ' in den letzten 7 Tagen' + (D.mailliste.menge ? ' · ' + D.mailliste.menge + ' Stück gewünscht' : '')})),
+        h('div', {class:'stat'}, h('span', {class:'lbl', text:'Bestellungen offen'}), h('span', {class:'val', text: String(offen)}), h('span', {class:'sub', text: neu ? neu + ' neu, noch nicht bearbeitet' : 'nichts Neues'})),
+        h('div', {class:'stat'}, h('span', {class:'lbl', text:'Nächster Termin'}), kommende.length ? h('span', {class:'val', style:'font-size:22px', text: dat(kommende[0].datum)}) : h('span', {class:'val', style:'font-size:22px', text:'keiner'}), h('span', {class:'sub', text: kommende.length ? (kommende[0].von ? kommende[0].von + ' Uhr · ' : '') + kommende[0].ort : 'Termin anlegen unter „Termine“'}))
+      ),
+      s.banner_aktiv === '1' && s.banner_text ? h('div', {class:'note'}, h('b', {text:'Banner ist an: '}), s.banner_text) : null,
+      h('div', {class:'card'}, h('div', {class:'head', style:'margin-bottom:8px'}, h('h2', {text:'Letzte Änderungen'}), h('a', {href:'#protokoll', class:'small', onclick:function(e){ e.preventDefault(); go('protokoll'); }, text:'Alle anzeigen →'})),
+        D.protokoll.length ? logList(D.protokoll) : h('p', {class:'muted', text:'Noch nichts passiert.'}))
+    );
+  }
+
+  /* ---------- Termine ---------- */
+  var editTermin = null;
+  function pTermine(){
+    var t = editTermin || {datum:'', von:'', bis:'', ort:'', info:'', sichtbar:1};
+    var f = h('form', {novalidate:true},
+      h('div', {class:'grid3'},
+        field('Datum', inp('datum', t.datum, {type:'date', required:true})),
+        field('Von ', inp('von', t.von, {type:'time'}), '(optional)'),
+        field('Bis ', inp('bis', t.bis, {type:'time'}), '(optional)')),
+      field('Ort', inp('ort', t.ort, {required:true, maxlength:120, placeholder:'z. B. HTL Vöcklabruck, Aula'})),
+      field('Info ', inp('info', t.info, {maxlength:300, placeholder:'z. B. Komm vorbei und probier ihn aus'}), '(optional, steht klein unter dem Ort)'),
+      sw('sichtbar', 'Auf der Website anzeigen', 'Aus = nur hier im Admin sichtbar, z. B. solange der Termin noch nicht fix ist', t.sichtbar),
+      h('div', {class:'row'}, h('button', {class:'btn', type:'submit', text: editTermin ? 'Änderung speichern' : 'Termin anlegen'}),
+        editTermin ? h('button', {class:'btn leer', type:'button', text:'Abbrechen', onclick:function(){ editTermin = null; render(); }}) : null)
+    );
+    f.addEventListener('submit', function(e){
+      e.preventDefault();
+      var body = {datum: f.elements.datum.value, von: f.elements.von.value, bis: f.elements.bis.value, ort: f.elements.ort.value, info: f.elements.info.value, sichtbar: f.elements.sichtbar.checked};
+      if(!body.datum || !body.ort.trim()){ toast('Datum und Ort brauchen wir mindestens.', true); return; }
+      (editTermin ? api('PUT', 'termine/' + editTermin.id, body) : api('POST', 'termine', body))
+        .then(function(){ toast(editTermin ? 'Termin geändert.' : 'Termin angelegt. Ist sofort auf der Website.'); editTermin = null; load(); }).catch(fail);
+    });
+    var kommend = D.termine.filter(function(x){ return x.datum >= D.heute; }).sort(function(a,b){ return (a.datum + a.von) < (b.datum + b.von) ? -1 : 1; });
+    var vorbei = D.termine.filter(function(x){ return x.datum < D.heute; });
+    function row(x, alt){
+      var d = d8(x.datum);
+      return h('div', {class:'item' + (alt ? ' alt' : '')},
+        h('div', {class:'date'}, h('b', {text: String(d.getDate())}), h('span', {text: MON[d.getMonth()]})),
+        h('div', {class:'main'}, h('b', null, x.ort, x.sichtbar ? null : h('span', {class:'tag', text:'versteckt'})),
+          h('span', {class:'muted small', text: TAGE[d.getDay()] + (x.von ? ', ' + x.von + (x.bis ? ' bis ' + x.bis : '') + ' Uhr' : '') + (x.info ? ' · ' + x.info : '')})),
+        h('div', {class:'acts'},
+          alt ? null : icon(x.sichtbar ? 'eye' : 'eyeoff', x.sichtbar ? 'Verstecken' : 'Anzeigen', function(){ api('PUT', 'termine/' + x.id, {datum:x.datum, von:x.von, bis:x.bis, ort:x.ort, info:x.info, sichtbar: !x.sichtbar}).then(function(){ toast(x.sichtbar ? 'Versteckt.' : 'Wird angezeigt.'); load(); }).catch(fail); }),
+          icon('edit', 'Bearbeiten', function(){ editTermin = x; render(); window.scrollTo(0, 0); }),
+          icon('del', 'Löschen', function(){ if(confirm('Termin am ' + dat(x.datum) + ' (' + x.ort + ') löschen?')) api('DELETE', 'termine/' + x.id).then(function(){ toast('Gelöscht.'); load(); }).catch(fail); })
+        ));
+    }
+    return h('div', {class:'panel'},
+      h('div', {class:'head'}, h('div', null, h('h1', {text:'Termine'}), h('p', {class:'muted', text:'Verkaufsstände und Aktionen. Erscheinen sofort auf der Website, vergangene verschwinden automatisch.'}))),
+      h('div', {class:'card'}, h('h2', {text: editTermin ? 'Termin bearbeiten' : 'Neuer Termin'}), h('p', {class:'muted', text:'Die nächsten sechs sichtbaren Termine stehen auf der Website, der erste wird hervorgehoben.'}), f),
+      h('h2', {text:'Kommende Termine'}),
+      kommend.length ? h('div', {class:'list'}, kommend.map(function(x){ return row(x, false); })) : h('div', {class:'empty', text:'Keine kommenden Termine. Auf der Website steht dann „Termine folgen bald“.'}),
+      vorbei.length ? h('details', null, h('summary', {style:'cursor:pointer;font-weight:700', text:'Vergangene Termine (' + vorbei.length + ')'}), h('div', {class:'list', style:'margin-top:12px'}, vorbei.map(function(x){ return row(x, true); }))) : null,
+      importBox()
+    );
+  }
+  // Einmalig: Termine aus der alten Google-Tabelle übernehmen
+  var CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSdaM8XlX14x4VfH7WVJkoNu_Q518RQdo1yN_TrTnbQSnaLbMIOhdHWnRMZuJhE3yQPdmGXR4oNEczb/pub?output=csv';
+  function importBox(){
+    if(D.termine.length) return null;
+    return h('div', {class:'card'}, h('h2', {text:'Termine aus der Google-Tabelle übernehmen'}), h('p', {class:'muted', text:'Einmalig beim Umzug: Holt alle kommenden Termine aus der alten Tabelle hierher. Danach braucht ihr die Tabelle nicht mehr.'}),
+      h('button', {class:'btn leer', type:'button', text:'Jetzt übernehmen', onclick:function(e){
+        var b = e.currentTarget; b.disabled = true;
+        fetch(CSV_URL).then(function(r){ return r.text(); }).then(function(t){
+          var rows = t.replace(/^﻿/, '').split(/\r?\n/).filter(Boolean).map(function(l){ var out = [], f = '', q = false; for(var i=0;i<l.length;i++){ var c = l[i]; if(q){ if(c === '"'){ if(l[i+1] === '"'){ f += '"'; i++; } else q = false; } else f += c; } else if(c === '"') q = true; else if(c === ','){ out.push(f); f = ''; } else f += c; } out.push(f); return out; });
+          var hd = rows.shift().map(function(x){ return x.trim().toLowerCase(); });
+          var c = function(n){ return hd.indexOf(n); };
+          var jobs = rows.map(function(r){
+            var m = (r[c('datum')] || '').trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); if(!m) return null;
+            var iso = m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2); if(iso < D.heute) return null;
+            var z = function(v){ var x = (v || '').trim().match(/^(\d{1,2})[:.](\d{2})/); return x ? (+x[1]) + ':' + x[2] : ''; };
+            return {datum: iso, von: z(r[c('von')]), bis: z(r[c('bis')]), ort: (r[c('ort')] || '').trim(), info: (r[c('info')] || '').trim(), sichtbar: (r[c('anzeigen')] || '').trim().toLowerCase() !== 'nein'};
+          }).filter(function(x){ return x && x.ort; });
+          if(!jobs.length){ toast('In der Tabelle sind keine kommenden Termine.'); b.disabled = false; return; }
+          return jobs.reduce(function(p, j){ return p.then(function(){ return api('POST', 'termine', j); }); }, Promise.resolve()).then(function(){ toast(jobs.length + ' Termine übernommen.'); load(); });
+        }).catch(function(err){ b.disabled = false; fail(err && err.message ? err : new Error('Tabelle konnte nicht geladen werden.')); });
+      }}));
+  }
+
+  /* ---------- Verkauf ---------- */
+  function saveSettings(obj, msg){ return api('PUT', 'settings', obj).then(function(r){ toast(r.geaendert ? (msg || 'Gespeichert.') : 'Nichts geändert.'); load(); }).catch(fail); }
+  function pVerkauf(){
+    var s = D.s;
+    var f1 = h('form', null,
+      sw('bestellen_offen', 'Bestellen offen', 'An: Auf der Website erscheint das Bestellformular. Aus: Mail-Liste „Bald bestellbar“.', s.bestellen_offen === '1'),
+      h('div', {class:'grid3'},
+        field('Preis pro Stück ', inp('preis', s.preis, {inputmode:'decimal', placeholder:'z. B. 24,90'}), '(inkl. USt)'),
+        field('Versand Österreich ', inp('versand_at', s.versand_at, {inputmode:'decimal', placeholder:'z. B. 5,50'}), '(leer = kein Versand)'),
+        field('Versand Deutschland ', inp('versand_de', s.versand_de, {inputmode:'decimal', placeholder:'z. B. 11,90'}), '(leer = kein Versand)')),
+      h('div', null, h('button', {class:'btn', type:'submit', text:'Speichern'})));
+    f1.addEventListener('submit', function(e){ e.preventDefault();
+      var o = {bestellen_offen: f1.elements.bestellen_offen.checked ? '1' : '0', preis: f1.elements.preis.value, versand_at: f1.elements.versand_at.value, versand_de: f1.elements.versand_de.value};
+      if(o.bestellen_offen === '1' && s.bestellen_offen !== '1' && !confirm('Bestellen wirklich öffnen? Ab jetzt können Leute auf der Website verbindlich bestellen.')) return;
+      saveSettings(o, o.bestellen_offen === '1' ? 'Gespeichert. Bestellen ist offen.' : 'Gespeichert.'); });
+    var f2 = h('form', null,
+      sw('ausverkauft', 'Ausverkauft', 'An: Bestellen ist zu, auf der Website steht „Gerade ausverkauft“ mit Mail-Liste für die nächste Runde.', s.ausverkauft === '1'),
+      h('div', {class:'grid2'},
+        field('Verfügbare Stück ', inp('stueck_verfuegbar', s.stueck_verfuegbar, {type:'number', min:0, inputmode:'numeric', placeholder:'leer = nicht mitzählen'}), '(wird bei jeder Bestellung automatisch weniger, bei 0 = ausverkauft)'),
+        h('div', {style:'align-self:end'}, sw('stueck_anzeigen', 'Stückzahl auf der Website zeigen', '„Noch 12 Stück verfügbar“', s.stueck_anzeigen === '1'))),
+      h('div', null, h('button', {class:'btn', type:'submit', text:'Speichern'})));
+    f2.addEventListener('submit', function(e){ e.preventDefault(); saveSettings({ausverkauft: f2.elements.ausverkauft.checked ? '1' : '0', stueck_verfuegbar: f2.elements.stueck_verfuegbar.value, stueck_anzeigen: f2.elements.stueck_anzeigen.checked ? '1' : '0'}); });
+    var f3 = h('form', null,
+      h('div', {class:'grid2'},
+        field('Verkaufte Anteilsscheine ', inp('anteile_verkauft', s.anteile_verkauft, {type:'number', min:0, inputmode:'numeric', placeholder:'leer = nicht anzeigen'}), '(auf der Website: „noch X von 80 frei“)'),
+        field('Anteilsscheine insgesamt', inp('anteile_gesamt', s.anteile_gesamt, {type:'number', min:1, inputmode:'numeric'}))),
+      h('div', null, h('button', {class:'btn', type:'submit', text:'Speichern'})));
+    f3.addEventListener('submit', function(e){ e.preventDefault(); saveSettings({anteile_verkauft: f3.elements.anteile_verkauft.value, anteile_gesamt: f3.elements.anteile_gesamt.value}); });
+    var m = modus(s);
+    return h('div', {class:'panel'},
+      h('div', {class:'head'}, h('div', null, h('h1', {text:'Verkauf'}), h('p', {class:'muted'}, 'Gerade auf der Website: ', h('span', {class:'pill'}, h('i', {style:'background:' + m[1]}), m[0])))),
+      h('div', {class:'card'}, h('h2', {text:'Bestellen und Preise'}), h('p', {class:'muted', text:'Bestellen lässt sich erst öffnen, wenn ein Preis eingetragen ist. Preise gelten nur für neue Bestellungen.'}), f1),
+      h('div', {class:'card'}, h('h2', {text:'Lager'}), h('p', {class:'muted', text:'Optional. Wenn ihr Stückzahlen eintragt, kann niemand mehr bestellen, als da ist.'}), f2),
+      h('div', {class:'card'}, h('h2', {text:'Anteilsscheine'}), h('p', {class:'muted', text:'Zählt auf der Website mit, wie viele noch frei sind.'}), f3)
+    );
+  }
+
+  /* ---------- Bestellungen ---------- */
+  var filt = 'offen', orders = null;
+  function pBestellungen(){
+    var wrap = h('div', {class:'panel'},
+      h('div', {class:'head'}, h('div', null, h('h1', {text:'Bestellungen'}), h('p', {class:'muted', text:'Neue Bestellungen kommen auch per Mail. Status hier mitführen, dann weiß das ganze Team Bescheid.'})),
+        h('button', {class:'btn leer', type:'button', text:'Als Tabelle (CSV)', onclick:function(){
+          if(!orders) return;
+          download('bestellungen-' + D.heute + '.csv', csv([['Nr','Datum','Name','E-Mail','Menge','Lieferart','Straße','PLZ','Ort','Land','Einzelpreis','Versand','Summe','Status','Nachricht','Notiz']].concat(orders.map(function(o){ return [o.nr, ts(o.created_at), o.name, o.email, o.menge, o.lieferart, o.strasse, o.plz, o.ort, o.land, euro(o.einzelpreis_cent), euro(o.versand_cent), euro(o.summe_cent), o.status, o.nachricht, o.notiz]; }))), 'text/csv;charset=utf-8');
+        }})),
+      h('div', {class:'loading', text:'Wird geladen …'}));
+    api('GET', 'bestellungen').then(function(r){ orders = r.liste; wrap.replaceChild(orderList(), wrap.lastChild); }).catch(fail);
+    return wrap;
+  }
+  function orderList(){
+    var counts = {}; orders.forEach(function(o){ counts[o.status] = (counts[o.status] || 0) + 1; });
+    var F = [['offen','Offen', (counts.neu || 0) + (counts.bezahlt || 0)], ['alle','Alle', orders.length]].concat(STATUS.map(function(x){ return [x[0], x[1], counts[x[0]] || 0]; }));
+    var chips = h('div', {class:'chips'}, F.map(function(x){ return h('button', {class:'chip', type:'button', 'aria-pressed': filt === x[0] ? 'true' : 'false', onclick:function(){ filt = x[0]; render(); }}, x[1], h('small', {text: String(x[2])})); }));
+    var list = orders.filter(function(o){ return filt === 'alle' || (filt === 'offen' ? (o.status === 'neu' || o.status === 'bezahlt') : o.status === filt); });
+    return h('div', {class:'panel'}, chips,
+      list.length ? h('div', {class:'list'}, list.map(orderRow)) : h('div', {class:'empty', text: orders.length ? 'Keine Bestellungen in diesem Filter.' : 'Noch keine Bestellungen. Sobald „Bestellen offen“ an ist, landen sie hier.'}));
+  }
+  function orderRow(o){
+    var sel = h('select', {name:'status', 'aria-label':'Status'}, STATUS.map(function(x){ return h('option', {value:x[0], selected: o.status === x[0]}, x[1]); }));
+    var notiz = h('textarea', {name:'notiz', rows:2, placeholder:'Interne Notiz, z. B. „Rechnung am 3.11. geschickt“'}); notiz.value = o.notiz || '';
+    var mail = 'mailto:' + encodeURIComponent(o.email) + '?subject=' + encodeURIComponent('Deine Bestellung ' + o.nr + ' bei Backpack Hero');
+    return h('details', {class:'order'},
+      h('summary', null, h('span', {class:'nr', text:o.nr}), h('span', {class:'nm'}, h('b', {text:o.name}), h('span', {class:'muted small hide-m', text:' · ' + o.menge + ' Stück · ' + o.lieferart})), h('span', {class:'num hide-m', text:euro(o.summe_cent)}), status(o.status)),
+      h('div', {class:'body'},
+        h('dl', null,
+          h('dt', {text:'Bestellt am'}), h('dd', {text: ts(o.created_at)}),
+          h('dt', {text:'E-Mail'}), h('dd', null, h('a', {href:mail, text:o.email})),
+          h('dt', {text:'Menge'}), h('dd', {text: o.menge + ' × ' + euro(o.einzelpreis_cent)}),
+          h('dt', {text:'Lieferart'}), h('dd', {text: o.lieferart + (o.lieferart === 'Versand' ? ' (' + euro(o.versand_cent) + ')' : '')}),
+          o.lieferart === 'Versand' ? h('dt', {text:'Adresse'}) : null, o.lieferart === 'Versand' ? h('dd', {text: o.strasse + ', ' + o.plz + ' ' + o.ort + ', ' + o.land}) : null,
+          h('dt', {text:'Summe'}), h('dd', null, h('b', {text: euro(o.summe_cent)})),
+          o.nachricht ? h('dt', {text:'Nachricht'}) : null, o.nachricht ? h('dd', {text:o.nachricht}) : null,
+          o.updated_by ? h('dt', {text:'Zuletzt geändert'}) : null, o.updated_by ? h('dd', {text: ts(o.updated_at) + ' von ' + wer(o.updated_by)}) : null),
+        h('div', {class:'grid2'}, field('Status', sel), field('Notiz', notiz)),
+        h('div', {class:'row'},
+          h('button', {class:'btn klein', type:'button', text:'Speichern', onclick:function(){
+            if(sel.value === 'storniert' && o.status !== 'storniert' && !confirm('Bestellung ' + o.nr + ' wirklich stornieren?')) return;
+            api('PUT', 'bestellungen/' + o.id, {status: sel.value, notiz: notiz.value}).then(function(){ toast('Bestellung ' + o.nr + ' gespeichert.'); load(); }).catch(fail); }}),
+          h('a', {class:'btn klein leer', href:mail, text:'Kunden anschreiben'})),
+        h('p', {class:'muted small', text:'Rechnung mit Rechnungsnummer ' + o.nr + ' und Junior-Hinweis aus dem Gmail schicken.' + (o.lieferart === 'Versand' ? ' Versand erst nach Zahlungseingang.' : '')})
+      ));
+  }
+
+  /* ---------- Mail-Liste ---------- */
+  function pMailliste(){
+    var wrap = h('div', {class:'panel'},
+      h('div', {class:'head'}, h('div', null, h('h1', {text:'Mail-Liste'}), h('p', {class:'muted', text: D.mailliste.gesamt + ' Einträge, ' + D.mailliste.woche + ' davon in den letzten 7 Tagen.' + (D.mailliste.menge ? ' Zusammen ' + D.mailliste.menge + ' Stück gewünscht.' : '')}))),
+      h('div', {class:'note'}, h('b', {text:'Wichtig beim Anschreiben: '}), 'Adressen immer ins BCC, nie ins An-Feld. Sonst sieht jeder alle anderen Adressen. Wer sich austragen will, wird hier gelöscht.'),
+      h('div', {class:'loading', text:'Wird geladen …'}));
+    api('GET', 'mailliste').then(function(r){
+      var L = r.liste;
+      var tools = h('div', {class:'row'},
+        h('button', {class:'btn', type:'button', text:'Alle Adressen kopieren (für BCC)', disabled: !L.length, onclick:function(){
+          var t = L.map(function(x){ return x.email; }).join(', ');
+          (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function(){ toast(L.length + ' Adressen kopiert.'); }).catch(function(){ prompt('Adressen kopieren:', t); });
+        }}),
+        h('button', {class:'btn leer', type:'button', text:'Als Tabelle (CSV)', disabled: !L.length, onclick:function(){
+          download('mailliste-' + D.heute + '.csv', csv([['E-Mail','Vorname','Anzahl','Eingetragen am']].concat(L.map(function(x){ return [x.email, x.vorname, x.menge, ts(x.created_at)]; }))), 'text/csv;charset=utf-8');
+        }}));
+      var tbl = L.length ? h('div', {class:'tablewrap'}, h('table', null,
+        h('thead', null, h('tr', null, h('th', {text:'E-Mail'}), h('th', {text:'Vorname'}), h('th', {text:'Anzahl'}), h('th', {text:'Eingetragen'}), h('th', {text:''}))),
+        h('tbody', null, L.map(function(x){ return h('tr', null, h('td', {text:x.email}), h('td', {text:x.vorname || ''}), h('td', {class:'num', text: x.menge ? String(x.menge) : ''}), h('td', {class:'num', text: ts(x.created_at)}),
+          h('td', null, icon('del', 'Austragen', function(){ if(confirm(x.email + ' aus der Mail-Liste austragen?')) api('DELETE', 'mailliste/' + x.id).then(function(){ toast('Ausgetragen.'); load(); }).catch(fail); }))); }))))
+        : h('div', {class:'empty', text:'Noch niemand eingetragen.'});
+      wrap.replaceChild(h('div', {class:'panel'}, tools, tbl), wrap.lastChild);
+    }).catch(fail);
+    return wrap;
+  }
+
+  /* ---------- Texte & Banner ---------- */
+  var TEXTE = [
+    ['Einleitung oben', [['text_hero', 'Text unter „Ordnung, die mitgeht.“', 'Drei Fächer, drei Farben, null Chaos. Mit Backpack Hero siehst du auf einen Blick, was erledigt ist, woran du gerade sitzt und was noch auf dich wartet.', true]]],
+    ['Datenblatt „Auf einen Blick“', [
+      ['dat_aufbau', 'Aufbau', '4 Platten, 3 Fächer'], ['dat_farben', 'Farben', 'Grün, Gelb, Rot, Schwarz'],
+      ['dat_aussen', 'Außen (B × T × H)', 'ca. 23,2 × 9,5 × 26,3 cm'], ['dat_fach', 'Ein Fach innen', 'ca. 21,6 × 2,5 × 25,5 cm'],
+      ['dat_material', 'Material', 'Kunststoff'], ['dat_herkunft', 'Hergestellt in', 'Oberösterreich'],
+      ['dat_gewicht', 'Gewicht (leer = Zeile ausgeblendet)', 'z. B. ca. 320 g']]],
+    ['FAQ-Antworten', [
+      ['faq_rucksack', 'Passt Backpack Hero in jeden Rucksack?', 'Außen ist er ca. 23,2 cm breit, 9,5 cm tief und 26,3 cm hoch …', true],
+      ['faq_material', 'Woraus ist er gemacht?', 'Aus Kunststoff. Die Platten bestellen wir fertig zugeschnitten …', true],
+      ['faq_preis', 'Was kostet er? (leer = automatisch aus Preis und Versand)', 'Wird automatisch aus dem Preis erzeugt', true],
+      ['faq_bekommen', 'Wie bekomme ich meinen?', 'Bestellen kannst du bald …', true],
+      ['faq_bezahlen', 'Wie bezahle ich?', 'Sobald du bestellen kannst, läuft es so …', true],
+      ['faq_klasse', 'Kann ich für eine ganze Klasse bestellen?', 'Ja, sobald es losgeht …', true],
+      ['faq_junior', 'Was ist eine Junior Company?', 'Ein Schulprojekt von Junior Achievement Austria …', true]]]
+  ];
+  function pTexte(){
+    var s = D.s;
+    var fb = h('form', null,
+      sw('banner_aktiv', 'Banner anzeigen', 'Schmale dunkle Leiste ganz oben auf der Website', s.banner_aktiv === '1'),
+      field('Banner-Text', inp('banner_text', s.banner_text, {maxlength:160, placeholder:'z. B. Morgen 10 bis 13 Uhr: Verkaufsstand in der Aula!'})),
+      field('Link ', inp('banner_link', s.banner_link, {maxlength:300, placeholder:'z. B. #termine oder https://www.instagram.com/backpackhero1'}), '(optional, macht den Text klickbar)'),
+      h('div', null, h('button', {class:'btn', type:'submit', text:'Banner speichern'})));
+    fb.addEventListener('submit', function(e){ e.preventDefault(); saveSettings({banner_aktiv: fb.elements.banner_aktiv.checked ? '1' : '0', banner_text: fb.elements.banner_text.value, banner_link: fb.elements.banner_link.value}); });
+    var ft = h('form', null, TEXTE.map(function(g){
+      return h('div', {style:'display:grid;gap:14px;margin-bottom:10px'}, h('h3', {text:g[0]}),
+        g[1].map(function(x){ var el = x[3] ? h('textarea', {name:x[0], maxlength:2000, placeholder:x[2]}) : inp(x[0], '', {maxlength:200, placeholder:x[2]}); el.value = s[x[0]] || ''; return field(x[1], el); }));
+    }), h('div', null, h('button', {class:'btn', type:'submit', text:'Texte speichern'})));
+    ft.addEventListener('submit', function(e){ e.preventDefault(); var o = {}; TEXTE.forEach(function(g){ g[1].forEach(function(x){ o[x[0]] = ft.elements[x[0]].value; }); }); saveSettings(o, 'Texte gespeichert. Sind sofort auf der Website.'); });
+    return h('div', {class:'panel'},
+      h('div', {class:'head'}, h('div', null, h('h1', {text:'Texte & Banner'}), h('p', {class:'muted', text:'Leeres Feld = der Standardtext der Website bleibt stehen. Nur reiner Text, keine Links oder Formatierung.'}))),
+      h('div', {class:'card'}, h('h2', {text:'Hinweis-Banner'}), h('p', {class:'muted', text:'Für kurzfristige Infos. Nach dem Termin wieder ausschalten.'}), fb),
+      h('div', {class:'card'}, h('h2', {text:'Texte'}), h('p', {class:'muted', text:'Die grauen Texte in den Feldern zeigen, was gerade auf der Website steht.'}), ft)
+    );
+  }
+
+  /* ---------- Protokoll ---------- */
+  function logList(L){
+    return h('div', {class:'log'}, L.map(function(x){ return h('div', {class:'e'}, h('span', {class:'when', text: ts(x.ts)}), h('div', {class:'what'}, h('b', {text: x.aktion + ' · ' + (x.email === 'Website' ? 'über die Website' : wer(x.email))}), x.details ? h('pre', {text:x.details}) : null)); }));
+  }
+  function pProtokoll(){
+    var wrap = h('div', {class:'panel'}, h('div', {class:'head'}, h('div', null, h('h1', {text:'Protokoll'}), h('p', {class:'muted', text:'Wer hat wann was geändert. Die letzten 500 Einträge.'}))), h('div', {class:'loading', text:'Wird geladen …'}));
+    api('GET', 'protokoll').then(function(r){ wrap.replaceChild(r.liste.length ? h('div', {class:'card'}, logList(r.liste)) : h('div', {class:'empty', text:'Noch keine Einträge.'}), wrap.lastChild); }).catch(fail);
+    return wrap;
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>
