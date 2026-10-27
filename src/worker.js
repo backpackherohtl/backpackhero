@@ -189,7 +189,8 @@ async function adminEmail(req, env) {
     if (!ok) return null;
     const t = Math.floor(Date.now() / 1000);
     const auds = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
-    if (!auds.includes(aud)) return null;
+    const erlaubt = aud.split(',').map((x) => x.trim()).filter(Boolean); // mehrere Access-Anwendungen möglich
+    if (!auds.some((x) => erlaubt.includes(x))) return null;
     if (payload.iss !== `https://${team}`) return null;
     if (!payload.exp || payload.exp < t || (payload.nbf && payload.nbf > t + 60)) return null;
     const email = String(payload.email || '').toLowerCase();
