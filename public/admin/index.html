@@ -307,7 +307,9 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
     var neu = (D.bestellungen.filter(function(x){ return x.status === 'neu'; })[0] || {}).n || 0;
     return h('div', {class:'panel'},
       h('div', {class:'head'}, h('div', null, h('h1', {text:'Hallo ' + wer(D.email) + '!'}), h('p', {class:'muted', text:'So steht die Website gerade da.'})),
-        h('button', {class:'btn leer', type:'button', onclick: function(){ window.location.href = '/api/admin/export'; }}, 'Sicherung herunterladen')),
+        h('div', {style:'display:flex;gap:10px;flex-wrap:wrap'},
+          h('button', {class:'btn leer', type:'button', onclick: function(){ var b = this; b.disabled = true; api('POST', 'testmail', {}).then(function(j){ toast('Testmail an ' + j.an + ' geschickt.'); }).catch(fail).then(function(){ b.disabled = false; }); }}, 'Testmail senden'),
+          h('button', {class:'btn leer', type:'button', onclick: function(){ window.location.href = '/api/admin/export'; }}, 'Sicherung herunterladen'))),
       h('div', {class:'grid4'},
         h('div', {class:'stat dark'}, h('span', {class:'lbl', text:'Website-Modus'}), h('span', {class:'pill', style:'background:rgba(243,240,232,.1);color:var(--hell);margin-top:6px;justify-self:start'}, h('i', {style:'background:' + m[1]}), m[0]), h('a', {href:'#verkauf', class:'sub', style:'margin-top:8px', onclick:function(e){ e.preventDefault(); go('verkauf'); }, text:'Ändern →'})),
         h('div', {class:'stat'}, h('span', {class:'lbl', text:'Mail-Liste'}), h('span', {class:'val', text: String(D.mailliste.gesamt)}), h('span', {class:'sub', text: '+' + D.mailliste.woche + ' in den letzten 7 Tagen' + (D.mailliste.menge ? ' · ' + D.mailliste.menge + ' Stück gewünscht' : '')})),

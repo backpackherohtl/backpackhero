@@ -30,10 +30,12 @@
     "ACCESS_TEAM_DOMAIN": "backpackhero.cloudflareaccess.com",
     // AUD-Tag der Access-App „backpackhero.at“ (/admin und /api/admin). Mehrere mit Komma trennen
     "ACCESS_AUD": "38e08c6ff1c69345edba0922a554c7084d49117b34e90ac4c8c889c70b7bae16",
-    // Benachrichtigungen (funktionieren erst, wenn die Domain bei Cloudflare ist und Email Routing läuft)
+    // Benachrichtigungen: Absender auf unserer Domain, Empfänger ist eine bestätigte Adresse im Email Routing
     "NOTIFY_TO": "backpackherohtl@gmail.com",
-    "MAIL_FROM": ""
+    "MAIL_FROM": "info@backpackhero.at"
   },
+  // Mailversand nur an unser eigenes Postfach (Bestellungen, Wochenzusammenfassung)
+  "send_email": [{ "name": "MAILER", "destination_address": "backpackherohtl@gmail.com" }],
   // Montag 7:00 UTC = 8:00 Winterzeit / 9:00 Sommerzeit in Wien: Wochenmail. Täglich 3:00 UTC: Aufräumen
   "triggers": { "crons": ["0 7 * * 1", "0 3 * * *"] },
   "observability": { "enabled": true }

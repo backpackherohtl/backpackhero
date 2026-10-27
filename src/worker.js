@@ -135,14 +135,14 @@ async function log(env, email, aktion, details) {
     .bind(now(), email, aktion, String(details || '').slice(0, 1000)).run();
 }
 
-async function sendMail(env, subject, text) {
-  if (!env.MAILER || !env.MAIL_FROM || !env.NOTIFY_TO) return false;
+async function sendMail(env, subject, text, mitFehler = false) {
+  if (!env.MAILER || !env.MAIL_FROM || !env.NOTIFY_TO) return mitFehler ? 'Mailversand ist nicht eingerichtet.' : false;
   try {
     await env.MAILER.send({ to: env.NOTIFY_TO, from: { email: env.MAIL_FROM, name: 'Backpack Hero Website' }, subject, text });
-    return true;
+    return mitFehler ? '' : true;
   } catch (e) {
     console.log('Mail fehlgeschlagen', e && (e.code || e.message));
-    return false;
+    return mitFehler ? 'Mail fehlgeschlagen: ' + String((e && (e.code || e.message)) || 'unbekannt').slice(0, 200) : false;
   }
 }
 
@@ -318,6 +318,10 @@ async function admin(req, env, path, email) {
   if (idStr && !Number.isInteger(id)) return fail('Ungültige ID.');
 
   if (res === 'me' && m === 'GET') return json({ ok: true, email });
+  if (res === 'testmail' && m === 'POST') {
+    const err = await sendMail(env, 'Testmail von der Website', `Hallo!\n\nDas ist eine Testmail, ausgelöst von ${email} im Admin.\nWenn du das liest, funktionieren die Benachrichtigungen für Bestellungen und die Wochenzusammenfassung.\n\nBackpack Hero Website`, true);
+    return err ? fail(err, 502) : json({ ok: true, an: env.NOTIFY_TO });
+  }
 
   if (res === 'data' && m === 'GET') {
     const [s, termine, ml, ml7, best, last] = await Promise.all([
