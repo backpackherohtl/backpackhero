@@ -16,8 +16,8 @@
     {
       "binding": "DB",
       "database_name": "backpackhero",
-      // Nach dem Anlegen der Datenbank im Cloudflare-Dashboard hier die ID eintragen
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      // Datenbank im Cloudflare-Dashboard (Storage & Databases → D1)
+      "database_id": "79bf4e01-3eeb-4e25-91e3-421fbf5b9923"
     }
   ],
   "vars": {
