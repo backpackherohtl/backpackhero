@@ -483,9 +483,11 @@ export default {
     const url = new URL(req.url);
     const path = url.pathname;
 
-    // www.backpackhero.at → backpackhero.at
-    if (url.hostname.startsWith('www.')) {
-      url.hostname = url.hostname.slice(4);
+    // http → https und www.backpackhero.at → backpackhero.at (nicht lokal)
+    const lokal = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    if (!lokal && (url.protocol === 'http:' || url.hostname.startsWith('www.'))) {
+      url.protocol = 'https:';
+      if (url.hostname.startsWith('www.')) url.hostname = url.hostname.slice(4);
       return Response.redirect(url.toString(), 301);
     }
 
@@ -517,7 +519,12 @@ export default {
       }
     }
 
-    return env.ASSETS.fetch(req);
+    const r = await env.ASSETS.fetch(req);
+    if (lokal) return r;
+    // Browser merkt sich: diese Seite nur noch über https öffnen
+    const h = new Headers(r.headers);
+    h.set('strict-transport-security', 'max-age=31536000');
+    return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
   },
 
   async scheduled(event, env, ctx) {
