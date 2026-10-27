@@ -9,8 +9,8 @@
     "directory": "public",
     "binding": "ASSETS",
     "not_found_handling": "404-page",
-    // Für Admin und Schnittstellen läuft immer zuerst der Worker (Login-Prüfung)
-    "run_worker_first": ["/api/*", "/admin", "/admin/*"]
+    // Der Worker läuft immer zuerst (Login-Prüfung für Admin, Weiterleitung von www)
+    "run_worker_first": true
   },
   "d1_databases": [
     {
@@ -31,7 +31,7 @@
     "NOTIFY_TO": "backpackherohtl@gmail.com",
     "MAIL_FROM": ""
   },
-  // Montag 7:00 UTC = 8:00 Winterzeit / 9:00 Sommerzeit in Wien
-  "triggers": { "crons": ["0 7 * * 1"] },
+  // Montag 7:00 UTC = 8:00 Winterzeit / 9:00 Sommerzeit in Wien: Wochenmail. Täglich 3:00 UTC: Aufräumen
+  "triggers": { "crons": ["0 7 * * 1", "0 3 * * *"] },
   "observability": { "enabled": true }
 }

@@ -125,7 +125,7 @@ async function rateLimited(env, req, bucket, limit = 5) {
   const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM ratelimit WHERE k = ? AND ts > ?').bind(k, t - 600).first();
   if (row && row.n >= limit) return true;
   const stmts = [env.DB.prepare('INSERT INTO ratelimit (k, ts) VALUES (?, ?)').bind(k, t)];
-  if (Math.random() < 0.05) stmts.push(env.DB.prepare('DELETE FROM ratelimit WHERE ts < ?').bind(t - 86400));
+  stmts.push(env.DB.prepare('DELETE FROM ratelimit WHERE ts < ?').bind(t - 86400));
   await env.DB.batch(stmts);
   return false;
 }
@@ -479,6 +479,12 @@ export default {
     const url = new URL(req.url);
     const path = url.pathname;
 
+    // www.backpackhero.at → backpackhero.at
+    if (url.hostname.startsWith('www.')) {
+      url.hostname = url.hostname.slice(4);
+      return Response.redirect(url.toString(), 301);
+    }
+
     if (path.startsWith('/admin')) {
       const email = await adminEmail(req, env);
       if (!email) return new Response('Kein Zugriff. Bitte über den Login anmelden.', { status: 403, headers: { 'content-type': 'text/plain; charset=utf-8', ...SEC_HEADERS } });
@@ -511,6 +517,8 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(wochenbericht(env));
+    if (event.cron === '0 7 * * 1') ctx.waitUntil(wochenbericht(env));
+    // Täglich: alte Spam-Schutz-Einträge (IP-Hashes) löschen
+    else ctx.waitUntil(env.DB.prepare('DELETE FROM ratelimit WHERE ts < ?').bind(Math.floor(Date.now() / 1000) - 86400).run().catch(() => {}));
   },
 };
