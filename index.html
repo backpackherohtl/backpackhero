@@ -982,7 +982,7 @@ footer{padding:72px 0 40px}
   var TAGE = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
   var PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
   function $(id){ return document.getElementById(id); }
-  function el(tag, cls, text){ var e = document.createElement(tag); if(cls) e.className = cls; if(text) e.textContent = text; return e; }
+  function mk(tag, cls, text){ var e = document.createElement(tag); if(cls) e.className = cls; if(text) e.textContent = text; return e; }
   function cents(v){ var m = String(v || '').trim().replace(/\s|€/g, '').match(/^(\d{1,5})(?:[.,](\d{1,2}))?$/); return m ? +m[1] * 100 + +((m[2] || '0') + '0').slice(0, 2) : null; }
   function euro(c){ return (c / 100).toFixed(2).replace('.', ',') + ' €'; }
   function setBtnText(a, t){ var sp = a.querySelector('span'); if(sp) sp.textContent = t; else a.textContent = t; }
@@ -993,12 +993,12 @@ footer{padding:72px 0 40px}
     list.innerHTML = '';
     if(!ts.length){ list.hidden = true; note.hidden = true; leer.hidden = false; return; }
     ts.forEach(function(x, k){
-      var c = el('div', 'termin' + (k === 0 ? ' next' : ''));
-      c.appendChild(el('div', 'wtag', k === 0 ? 'Nächster Termin · ' + TAGE[x.d.getDay()] : TAGE[x.d.getDay()]));
-      c.appendChild(el('div', 'datum', x.d.getDate() + '.' + (x.d.getMonth()+1) + '.'));
-      if(x.von) c.appendChild(el('div', 'zeit', x.von + (x.bis ? ' bis ' + x.bis : '') + ' Uhr'));
-      var o = el('div', 'ort'); o.innerHTML = PIN; o.appendChild(el('span', '', x.ort)); c.appendChild(o);
-      if(x.info) c.appendChild(el('div', 'info', x.info));
+      var c = mk('div', 'termin' + (k === 0 ? ' next' : ''));
+      c.appendChild(mk('div', 'wtag', k === 0 ? 'Nächster Termin · ' + TAGE[x.d.getDay()] : TAGE[x.d.getDay()]));
+      c.appendChild(mk('div', 'datum', x.d.getDate() + '.' + (x.d.getMonth()+1) + '.'));
+      if(x.von) c.appendChild(mk('div', 'zeit', x.von + (x.bis ? ' bis ' + x.bis : '') + ' Uhr'));
+      var o = mk('div', 'ort'); o.innerHTML = PIN; o.appendChild(mk('span', '', x.ort)); c.appendChild(o);
+      if(x.info) c.appendChild(mk('div', 'info', x.info));
       list.appendChild(c);
     });
     list.hidden = false; note.hidden = false; leer.hidden = true;
@@ -1054,7 +1054,7 @@ footer{padding:72px 0 40px}
     if(s.banner_aktiv === '1' && s.banner_text){
       var bt = $('bhBannerText'); bt.textContent = '';
       if(s.banner_link && /^(https:\/\/|#|\/)/.test(s.banner_link)){
-        var a = el('a', '', s.banner_text); a.href = s.banner_link;
+        var a = mk('a', '', s.banner_text); a.href = s.banner_link;
         if(/^https:/.test(s.banner_link)){ a.target = '_blank'; a.rel = 'noopener'; }
         bt.appendChild(a);
       } else bt.textContent = s.banner_text;
