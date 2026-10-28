@@ -11,9 +11,9 @@ Ordnung, die mitgeht. Website der Backpack Hero Junior Company (Schulprojekt im 
 | `public/fonts/` | Schrift Archivo für den Admin |
 | `src/worker.js` | Backend: Datenbank, öffentliche Schnittstelle, Admin-Schnittstelle, Wochenmail |
 | `wrangler.jsonc` | Cloudflare-Konfiguration (Datenbank, Login-Prüfung, Zeitplan) |
-| `index.html` | Kopie der Website für GitHub Pages, solange der Umzug läuft |
+| `index.html` | Weiterleitung von der alten GitHub-Pages-Adresse auf backpackhero.at |
 
-Läuft auf Cloudflare Workers (gratis). Jeder Push auf `main` geht automatisch live.
+Läuft auf Cloudflare Workers (gratis) unter https://backpackhero.at, Admin unter https://backpackhero.at/admin. Jeder Push auf `main` geht automatisch live.
 
 ## Daten
 
@@ -21,7 +21,7 @@ Termine, Preise, Texte, Banner, Mail-Liste, Bestellungen und das Änderungsproto
 
 ## Sicherheit
 
-- `/admin` und `/api/admin/*` sind durch Cloudflare Access geschützt (Login mit Einmal-Code per Mail, nur freigegebene Adressen).
+- `/admin` und `/api/admin/*` sind durch Cloudflare Access geschützt (Login mit Einmal-Code per Mail, nur freigegebene Adressen). Freigaben: Zero Trust → Access controls → Policies → „Backpack Hero Team“ (Selector **Emails**, nie „Email domain“).
 - Der Worker prüft zusätzlich die Signatur des Access-Tokens selbst. Solange `ACCESS_TEAM_DOMAIN` und `ACCESS_AUD` nicht gesetzt sind, ist der Admin komplett gesperrt.
 - Alle Texte aus der Datenbank werden nur als reiner Text angezeigt, nie als HTML.
 - Formulare haben Spam-Schutz (verstecktes Feld und Begrenzung pro IP).
