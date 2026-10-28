@@ -617,6 +617,9 @@ export default {
     const h = new Headers(r.headers);
     // Browser merkt sich: diese Seite nur noch über https öffnen
     h.set('strict-transport-security', 'max-age=31536000');
+    // Schriften ändern sich nie, Bilder selten: länger im Browser behalten
+    if (r.status === 200 && path.startsWith('/fonts/')) h.set('cache-control', 'public, max-age=31536000, immutable');
+    else if (r.status === 200 && (path.startsWith('/img/') || /\.(png|ico)$/.test(path))) h.set('cache-control', 'public, max-age=604800');
     // Zeichensatz auch im Header angeben (für Suchmaschinen)
     const ct = h.get('content-type') || '';
     if (/^text\/(html|plain|css)|javascript|xml/.test(ct) && !/charset/i.test(ct)) h.set('content-type', ct + '; charset=utf-8');
