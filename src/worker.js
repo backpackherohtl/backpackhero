@@ -498,6 +498,7 @@ export default {
       const h = new Headers(r.headers);
       for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);
       h.set('cache-control', 'no-store');
+      h.set('x-robots-tag', 'noindex, nofollow');
       return new Response(r.body, { status: r.status, headers: h });
     }
 
@@ -521,9 +522,12 @@ export default {
 
     const r = await env.ASSETS.fetch(req);
     if (lokal) return r;
-    // Browser merkt sich: diese Seite nur noch über https öffnen
     const h = new Headers(r.headers);
+    // Browser merkt sich: diese Seite nur noch über https öffnen
     h.set('strict-transport-security', 'max-age=31536000');
+    // Zeichensatz auch im Header angeben (für Suchmaschinen)
+    const ct = h.get('content-type') || '';
+    if (/^text\/(html|plain|css)|javascript|xml/.test(ct) && !/charset/i.test(ct)) h.set('content-type', ct + '; charset=utf-8');
     return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
   },
 
