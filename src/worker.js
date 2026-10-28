@@ -5,6 +5,7 @@
  * - /api/public            öffentliche Daten (Termine, Einstellungen, Texte)
  * - /api/mailliste         Eintrag in die Mail-Liste "Bald bestellbar"
  * - /api/bestellung        Bestellung (nur wenn "Bestellen offen" an ist)
+ * - /api/anteil            Anfrage für einen Anteilsschein
  * - /api/admin/...         Verwaltung, nur mit gültigem Cloudflare-Access-Login
  * - /admin/...             Admin-Oberfläche, ebenfalls nur mit Login
  * - scheduled()            wöchentliche Zusammenfassung per Mail
@@ -22,6 +23,8 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS idx_mailliste_created ON mailliste(created_at)`,
   `CREATE TABLE IF NOT EXISTS bestellungen (id INTEGER PRIMARY KEY AUTOINCREMENT, nr TEXT, created_at TEXT, name TEXT, email TEXT, menge INTEGER, lieferart TEXT, strasse TEXT DEFAULT '', plz TEXT DEFAULT '', ort TEXT DEFAULT '', land TEXT DEFAULT '', nachricht TEXT DEFAULT '', status TEXT NOT NULL DEFAULT 'neu', einzelpreis_cent INTEGER, versand_cent INTEGER, summe_cent INTEGER, notiz TEXT DEFAULT '', updated_at TEXT, updated_by TEXT)`,
   `CREATE INDEX IF NOT EXISTS idx_bestellungen_status ON bestellungen(status)`,
+  `CREATE TABLE IF NOT EXISTS anteile (id INTEGER PRIMARY KEY AUTOINCREMENT, nr TEXT, created_at TEXT, name TEXT, email TEXT COLLATE NOCASE, anzahl INTEGER, nachricht TEXT DEFAULT '', status TEXT NOT NULL DEFAULT 'neu', notiz TEXT DEFAULT '', updated_at TEXT, updated_by TEXT)`,
+  `CREATE INDEX IF NOT EXISTS idx_anteile_email ON anteile(email)`,
   `CREATE TABLE IF NOT EXISTS protokoll (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT, email TEXT, aktion TEXT, details TEXT)`,
   `CREATE TABLE IF NOT EXISTS ratelimit (k TEXT NOT NULL, ts INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_ratelimit ON ratelimit(k, ts)`,
@@ -51,10 +54,12 @@ const LABELS = {
   dat_aufbau: 'Datenblatt Aufbau', dat_farben: 'Datenblatt Farben', dat_aussen: 'Datenblatt Außenmaße', dat_fach: 'Datenblatt Fach innen',
   dat_material: 'Datenblatt Material', dat_herkunft: 'Datenblatt Herkunft', dat_gewicht: 'Datenblatt Gewicht',
   faq_rucksack: 'FAQ Rucksack', faq_material: 'FAQ Material', faq_preis: 'FAQ Preis', faq_bekommen: 'FAQ Wie bekomme ich',
-  faq_bezahlen: 'FAQ Bezahlen', faq_klasse: 'FAQ Klasse', faq_junior: 'FAQ Junior Company',
+  faq_bezahlen: 'FAQ Bezahlen', faq_klasse: 'FAQ Klasse', faq_junior: 'FAQ Junior Company', faq_organizer: 'FAQ Was ist ein Rucksack-Organizer',
 };
 const zeigeWert = (k, v) => (/^(bestellen_offen|ausverkauft|stueck_anzeigen|banner_aktiv)$/.test(k) ? (v === '1' ? 'an' : 'aus') : v === '' ? 'leer' : `„${String(v).slice(0, 60)}“`);
 const STATUS = ['neu', 'bezahlt', 'versendet', 'abgeholt', 'storniert'];
+const ANTEIL_STATUS = ['neu', 'bezahlt', 'abgesagt'];
+const ANTEILE_PRO_PERSON = 2;
 const LAENDER = ['Österreich', 'Deutschland'];
 
 let schemaReady = false;
@@ -135,10 +140,12 @@ async function log(env, email, aktion, details) {
     .bind(now(), email, aktion, String(details || '').slice(0, 1000)).run();
 }
 
-async function sendMail(env, subject, text, mitFehler = false) {
+async function sendMail(env, subject, text, mitFehler = false, replyTo = '') {
   if (!env.MAILER || !env.MAIL_FROM || !env.NOTIFY_TO) return mitFehler ? 'Mailversand ist nicht eingerichtet.' : false;
   try {
-    await env.MAILER.send({ to: env.NOTIFY_TO, from: { email: env.MAIL_FROM, name: 'Backpack Hero Website' }, subject, text });
+    const msg = { to: env.NOTIFY_TO, from: { email: env.MAIL_FROM, name: 'Backpack Hero Website' }, subject, text };
+    if (replyTo) msg.replyTo = replyTo; // „Antworten“ in Gmail geht direkt an die Person
+    await env.MAILER.send(msg);
     return mitFehler ? '' : true;
   } catch (e) {
     console.log('Mail fehlgeschlagen', e && (e.code || e.message));
@@ -301,6 +308,49 @@ async function bestellung(req, env) {
   return json({ ok: true, nr, summe: euro(summe) });
 }
 
+// Zahl der Anteilsscheine, die noch frei sind (insgesamt minus bezahlt)
+function anteileFrei(s) {
+  const gesamt = Number(s.anteile_gesamt) || 0, verkauft = Number(s.anteile_verkauft) || 0;
+  return Math.max(0, gesamt - verkauft);
+}
+
+async function anteil(req, env) {
+  let b;
+  try { b = await readJson(req, 6000); } catch { return fail('Ungültige Anfrage.'); }
+  if (str(b.website, 200)) return json({ ok: true, nr: '' }); // Honeypot
+  const d = { name: str(b.name, 100), email: str(b.email, 254).toLowerCase(), anzahl: intOrNull(b.anzahl, 1, ANTEILE_PRO_PERSON), nachricht: str(b.nachricht, 1500) };
+  if (d.name.length < 2) return fail('Bitte gib deinen Namen an.');
+  if (!isEmail(d.email)) return fail('Bitte gib eine gültige E-Mail-Adresse ein.');
+  if (!d.anzahl || Number.isNaN(d.anzahl)) return fail(`Bitte wähl 1 oder ${ANTEILE_PRO_PERSON} Anteilsscheine.`);
+  if (b.datenschutz !== true) return fail('Bitte bestätige noch die Datenschutz-Einwilligung.');
+  const s = await getSettings(env);
+  const frei = anteileFrei(s);
+  if (frei <= 0) return fail('Leider sind schon alle Anteilsscheine vergeben.', 409);
+  if (d.anzahl > frei) return fail(`Es ist nur noch ${frei} Anteilsschein frei.`, 409);
+  const schon = await env.DB.prepare("SELECT COALESCE(SUM(anzahl),0) AS n FROM anteile WHERE email = ? AND status != 'abgesagt'").bind(d.email).first();
+  if (schon.n + d.anzahl > ANTEILE_PRO_PERSON) {
+    return fail(schon.n >= ANTEILE_PRO_PERSON
+      ? `Mit dieser E-Mail-Adresse hast du schon ${ANTEILE_PRO_PERSON} Anteilsscheine angefragt. Mehr geht pro Person nicht.`
+      : `Pro Person gehen höchstens ${ANTEILE_PRO_PERSON}. Du hast schon ${schon.n} angefragt, also geht noch ${ANTEILE_PRO_PERSON - schon.n}.`, 409);
+  }
+  if (await rateLimited(env, req, 'anteil', 4)) return fail('Zu viele Anfragen in kurzer Zeit. Probier es in ein paar Minuten nochmal.', 429);
+  const ts = now();
+  const ins = await env.DB.prepare("INSERT INTO anteile (created_at, name, email, anzahl, nachricht, status, updated_at) VALUES (?, ?, ?, ?, ?, 'neu', ?)")
+    .bind(ts, d.name, d.email, d.anzahl, d.nachricht, ts).run();
+  const id = ins.meta.last_row_id;
+  const nr = `AS-${String(id).padStart(3, '0')}`;
+  await env.DB.batch([
+    env.DB.prepare('UPDATE anteile SET nr = ? WHERE id = ?').bind(nr, id),
+    env.DB.prepare('INSERT INTO protokoll (ts, email, aktion, details) VALUES (?, ?, ?, ?)').bind(ts, 'Website', 'Neue Anteilsschein-Anfrage', `${nr}: ${d.anzahl} Stück`),
+  ]);
+  await sendMail(env, `Anteilsschein-Anfrage ${nr}: ${d.name} (${d.anzahl} Stück)`,
+    `Neue Anfrage für Anteilsscheine über die Website.\n\nNummer: ${nr}\nName: ${d.name}\nE-Mail: ${d.email}\nAnzahl: ${d.anzahl} × 10 € = ${d.anzahl * 10} €\n` +
+    (d.nachricht ? `Nachricht: ${d.nachricht}\n` : '') +
+    `\nAuf „Antworten“ klicken schreibt direkt an ${d.email}.\nSobald bezahlt ist, im Admin unter „Anteile“ auf „Bezahlt“ stellen, dann zählt die Website mit.\nIm Admin: ${new URL(req.url).origin}/admin/#anteile`,
+    false, d.email);
+  return json({ ok: true, nr });
+}
+
 /* ---------- Admin-Schnittstelle ---------- */
 
 async function admin(req, env, path, email) {
@@ -324,15 +374,16 @@ async function admin(req, env, path, email) {
   }
 
   if (res === 'data' && m === 'GET') {
-    const [s, termine, ml, ml7, best, last] = await Promise.all([
+    const [s, termine, ml, ml7, best, last, anteileStat] = await Promise.all([
       getSettings(env),
       env.DB.prepare('SELECT * FROM termine ORDER BY datum DESC, von DESC LIMIT 500').all(),
       env.DB.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(menge),0) AS menge FROM mailliste').first(),
       env.DB.prepare('SELECT COUNT(*) AS n FROM mailliste WHERE created_at > ?').bind(new Date(Date.now() - 7 * 864e5).toISOString()).first(),
       env.DB.prepare('SELECT status, COUNT(*) AS n, COALESCE(SUM(menge),0) AS menge FROM bestellungen GROUP BY status').all(),
       env.DB.prepare('SELECT ts, email, aktion, details FROM protokoll ORDER BY id DESC LIMIT 8').all(),
+      env.DB.prepare('SELECT status, COUNT(*) AS n, COALESCE(SUM(anzahl),0) AS anzahl FROM anteile GROUP BY status').all(),
     ]);
-    return json({ ok: true, email, heute: heuteWien(), s, termine: termine.results, mailliste: { gesamt: ml.n, menge: ml.menge, woche: ml7.n }, bestellungen: best.results, protokoll: last.results });
+    return json({ ok: true, email, heute: heuteWien(), s, termine: termine.results, mailliste: { gesamt: ml.n, menge: ml.menge, woche: ml7.n }, bestellungen: best.results, anteile: anteileStat.results, protokoll: last.results });
   }
 
   if (res === 'settings' && m === 'PUT') {
@@ -435,13 +486,52 @@ async function admin(req, env, path, email) {
     }
   }
 
+  if (res === 'anteile') {
+    if (m === 'GET') {
+      const { results } = await env.DB.prepare('SELECT * FROM anteile ORDER BY id DESC LIMIT 1000').all();
+      return json({ ok: true, liste: results });
+    }
+    if ((m === 'PUT' || m === 'DELETE') && id) {
+      const alt = await env.DB.prepare('SELECT * FROM anteile WHERE id = ?').bind(id).first();
+      if (!alt) return fail('Anfrage nicht gefunden.', 404);
+      const s = await getSettings(env);
+      const verkauft = Number(s.anteile_verkauft) || 0, gesamt = Number(s.anteile_gesamt) || 0;
+      const setVerkauft = (n) => env.DB.prepare(`INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('anteile_verkauft', ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`).bind(String(Math.max(0, n)), now(), email);
+      if (m === 'DELETE') {
+        if (alt.status === 'bezahlt') return fail('Bezahlte Anteilsscheine bitte nicht löschen, ihr braucht sie für die Auszahlung. Erst auf „Abgesagt“ stellen, falls das Geld zurückgegeben wurde.', 409);
+        await env.DB.batch([
+          env.DB.prepare('DELETE FROM anteile WHERE id = ?').bind(id),
+          env.DB.prepare('INSERT INTO protokoll (ts, email, aktion, details) VALUES (?, ?, ?, ?)').bind(now(), email, `Anteilsschein-Anfrage ${alt.nr} gelöscht`, ''),
+        ]);
+        return json({ ok: true });
+      }
+      let b;
+      try { b = await readJson(req, 4000); } catch { return fail('Ungültige Anfrage.'); }
+      const status = b.status === undefined ? alt.status : str(b.status, 20);
+      if (!ANTEIL_STATUS.includes(status)) return fail('Unbekannter Status.');
+      const notiz = b.notiz === undefined ? alt.notiz : str(b.notiz, 1000);
+      const ts = now();
+      const stmts = [env.DB.prepare('UPDATE anteile SET status = ?, notiz = ?, updated_at = ?, updated_by = ? WHERE id = ?').bind(status, notiz, ts, email, id)];
+      // Zähler „verkauft“ mitführen: bezahlt zählt, alles andere nicht
+      if (status !== alt.status && (status === 'bezahlt' || alt.status === 'bezahlt')) {
+        const neu = verkauft + (status === 'bezahlt' ? alt.anzahl : -alt.anzahl);
+        if (status === 'bezahlt' && gesamt && neu > gesamt) return fail(`Damit wären ${neu} von ${gesamt} Anteilsscheinen verkauft. Bitte unter „Verkauf“ die Gesamtzahl prüfen.`, 409);
+        stmts.push(setVerkauft(neu));
+      }
+      const det = [status !== alt.status ? `Status ${alt.status} → ${status}` : '', notiz !== alt.notiz ? 'Notiz geändert' : ''].filter(Boolean).join(', ');
+      if (det) stmts.push(env.DB.prepare('INSERT INTO protokoll (ts, email, aktion, details) VALUES (?, ?, ?, ?)').bind(ts, email, `Anteilsschein ${alt.nr}`, det));
+      await env.DB.batch(stmts);
+      return json({ ok: true });
+    }
+  }
+
   if (res === 'protokoll' && m === 'GET') {
     const { results } = await env.DB.prepare('SELECT ts, email, aktion, details FROM protokoll ORDER BY id DESC LIMIT 500').all();
     return json({ ok: true, liste: results });
   }
 
   if (res === 'export' && m === 'GET') {
-    const tabs = ['settings', 'termine', 'mailliste', 'bestellungen', 'protokoll'];
+    const tabs = ['settings', 'termine', 'mailliste', 'bestellungen', 'anteile', 'protokoll'];
     const out = { exportiert_am: now(), exportiert_von: email };
     for (const t of tabs) out[t] = (await env.DB.prepare(`SELECT * FROM ${t}`).all()).results;
     await log(env, email, 'Sicherung heruntergeladen', '');
@@ -456,17 +546,18 @@ async function admin(req, env, path, email) {
 async function wochenbericht(env) {
   await ensureSchema(env);
   const seit = new Date(Date.now() - 7 * 864e5).toISOString();
-  const [neu, gesamt, offen, termine] = await Promise.all([
+  const [neu, gesamt, offen, termine, anteileNeu] = await Promise.all([
     env.DB.prepare('SELECT COUNT(*) AS n FROM mailliste WHERE created_at > ?').bind(seit).first(),
     env.DB.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(menge),0) AS menge FROM mailliste').first(),
     env.DB.prepare("SELECT COUNT(*) AS n FROM bestellungen WHERE status IN ('neu','bezahlt')").first(),
     env.DB.prepare('SELECT datum, von, ort FROM termine WHERE sichtbar = 1 AND datum >= ? ORDER BY datum LIMIT 3').bind(heuteWien()).all(),
+    env.DB.prepare("SELECT COUNT(*) AS n FROM anteile WHERE status = 'neu'").first(),
   ]);
   const t = termine.results.map((x) => `- ${x.datum.split('-').reverse().join('.')} ${x.von ? x.von + ' Uhr ' : ''}${x.ort}`).join('\n') || '- keine eingetragen';
   await sendMail(env, `Backpack Hero: Wochenübersicht (${neu.n} neue auf der Mail-Liste)`,
     `Hallo Team,\n\nhier die Woche auf der Website:\n\nMail-Liste: ${neu.n} neue Einträge, insgesamt ${gesamt.n}` +
     (gesamt.menge ? ` (zusammen ${gesamt.menge} Stück gewünscht)` : '') +
-    `\nBestellungen, die noch bearbeitet werden müssen: ${offen.n}\n\nNächste Termine:\n${t}\n\nAlles Weitere im Admin.\n`);
+    `\nBestellungen, die noch bearbeitet werden müssen: ${offen.n}\nAnteilsschein-Anfragen, noch nicht bezahlt: ${anteileNeu.n}\n\nNächste Termine:\n${t}\n\nAlles Weitere im Admin.\n`);
 }
 
 /* ---------- Einstiegspunkt ---------- */
@@ -508,6 +599,7 @@ export default {
         if (path === '/api/public' && req.method === 'GET') return json(await publicData(env));
         if (path === '/api/mailliste' && req.method === 'POST') return await mailliste(req, env);
         if (path === '/api/bestellung' && req.method === 'POST') return await bestellung(req, env);
+        if (path === '/api/anteil' && req.method === 'POST') return await anteil(req, env);
         if (path.startsWith('/api/admin/')) {
           const email = await adminEmail(req, env);
           if (!email) return fail('Nicht angemeldet.', 401);

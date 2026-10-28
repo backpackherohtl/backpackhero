@@ -131,7 +131,8 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
 .st-neu{background:#F7E3DF;color:#93301F}.st-neu i{background:var(--rot)}
 .st-bezahlt{background:#F8EDD1;color:#7A5A12}.st-bezahlt i{background:var(--gelb)}
 .st-versendet,.st-abgeholt{background:#DCEBE1;color:#215A38}.st-versendet i,.st-abgeholt i{background:var(--gruen)}
-.st-storniert{background:var(--hell-2);color:var(--text-2)}.st-storniert i{background:#9E988B}
+.st-storniert,.st-abgesagt{background:var(--hell-2);color:var(--text-2)}.st-storniert i,.st-abgesagt i{background:#9E988B}
+.st-a-bezahlt{background:#DCEBE1;color:#215A38}.st-a-bezahlt i{background:var(--gruen)}
 
 /* Protokoll */
 .log{display:grid;gap:0}
@@ -192,6 +193,7 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
     <button role="tab" data-tab="termine">Termine</button>
     <button role="tab" data-tab="verkauf">Verkauf</button>
     <button role="tab" data-tab="bestellungen">Bestellungen <span class="cnt" id="cntNeu"></span></button>
+    <button role="tab" data-tab="anteile">Anteile <span class="cnt" id="cntAnteile"></span></button>
     <button role="tab" data-tab="mailliste">Mail-Liste</button>
     <button role="tab" data-tab="texte">Texte &amp; Banner</button>
     <button role="tab" data-tab="protokoll">Protokoll</button>
@@ -272,12 +274,14 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
       document.getElementById('who').textContent = 'Angemeldet als ' + d.email;
       var neu = (d.bestellungen.filter(function(x){ return x.status === 'neu'; })[0] || {}).n || 0;
       document.getElementById('cntNeu').textContent = neu ? neu : '';
+      var aneu = ((d.anteile || []).filter(function(x){ return x.status === 'neu'; })[0] || {}).n || 0;
+      document.getElementById('cntAnteile').textContent = aneu ? aneu : '';
       render();
     }).catch(function(e){ if(e.message !== 'auth') main.innerHTML = '<div class="empty">Konnte die Daten nicht laden. Bitte Seite neu laden.</div>'; });
   }
   function render(){
     main.innerHTML = '';
-    var p = ({uebersicht: pUebersicht, termine: pTermine, verkauf: pVerkauf, bestellungen: pBestellungen, mailliste: pMailliste, texte: pTexte, protokoll: pProtokoll})[tab]();
+    var p = ({uebersicht: pUebersicht, termine: pTermine, verkauf: pVerkauf, bestellungen: pBestellungen, anteile: pAnteile, mailliste: pMailliste, texte: pTexte, protokoll: pProtokoll})[tab]();
     main.appendChild(p);
   }
   document.querySelectorAll('nav.tabs button').forEach(function(b){
@@ -414,7 +418,7 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
     f2.addEventListener('submit', function(e){ e.preventDefault(); saveSettings({ausverkauft: f2.elements.ausverkauft.checked ? '1' : '0', stueck_verfuegbar: f2.elements.stueck_verfuegbar.value, stueck_anzeigen: f2.elements.stueck_anzeigen.checked ? '1' : '0'}); });
     var f3 = h('form', null,
       h('div', {class:'grid2'},
-        field('Verkaufte Anteilsscheine ', inp('anteile_verkauft', s.anteile_verkauft, {type:'number', min:0, inputmode:'numeric', placeholder:'leer = nicht anzeigen'}), '(auf der Website: „noch X von 80 frei“)'),
+        field('Verkaufte Anteilsscheine ', inp('anteile_verkauft', s.anteile_verkauft, {type:'number', min:0, inputmode:'numeric', placeholder:'leer = nicht anzeigen'}), '(zählt automatisch mit, wenn ihr unter „Anteile“ auf Bezahlt stellt)'),
         field('Anteilsscheine insgesamt', inp('anteile_gesamt', s.anteile_gesamt, {type:'number', min:1, inputmode:'numeric'}))),
       h('div', null, h('button', {class:'btn', type:'submit', text:'Speichern'})));
     f3.addEventListener('submit', function(e){ e.preventDefault(); saveSettings({anteile_verkauft: f3.elements.anteile_verkauft.value, anteile_gesamt: f3.elements.anteile_gesamt.value}); });
@@ -423,7 +427,7 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
       h('div', {class:'head'}, h('div', null, h('h1', {text:'Verkauf'}), h('p', {class:'muted'}, 'Gerade auf der Website: ', h('span', {class:'pill'}, h('i', {style:'background:' + m[1]}), m[0])))),
       h('div', {class:'card'}, h('h2', {text:'Bestellen und Preise'}), h('p', {class:'muted', text:'Bestellen lässt sich erst öffnen, wenn ein Preis eingetragen ist. Preise gelten nur für neue Bestellungen.'}), f1),
       h('div', {class:'card'}, h('h2', {text:'Lager'}), h('p', {class:'muted', text:'Optional. Wenn ihr Stückzahlen eintragt, kann niemand mehr bestellen, als da ist.'}), f2),
-      h('div', {class:'card'}, h('h2', {text:'Anteilsscheine'}), h('p', {class:'muted', text:'Zählt auf der Website mit, wie viele noch frei sind.'}), f3)
+      h('div', {class:'card'}, h('h2', {text:'Anteilsscheine'}), h('p', {class:'muted', text:'Auf der Website steht „noch X von 80 frei“. Normalerweise müsst ihr hier nichts eintragen, nur zum Korrigieren.'}), f3)
     );
   }
 
@@ -474,6 +478,54 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
       ));
   }
 
+  /* ---------- Anteilsscheine ---------- */
+  var ASTATUS = [['neu','Neu, noch nicht bezahlt'],['bezahlt','Bezahlt'],['abgesagt','Abgesagt']];
+  var afilt = 'alle', shares = null;
+  function aStatus(s){ var l = ASTATUS.filter(function(x){ return x[0] === s; })[0]; return h('span', {class:'st ' + (s === 'bezahlt' ? 'st-a-bezahlt' : 'st-' + s)}, h('i'), l ? l[1].replace(', noch nicht bezahlt','') : s); }
+  function pAnteile(){
+    var s = D.s, ges = parseInt(s.anteile_gesamt, 10) || 0, verk = parseInt(s.anteile_verkauft, 10) || 0;
+    var wrap = h('div', {class:'panel'},
+      h('div', {class:'head'}, h('div', null, h('h1', {text:'Anteilsscheine'}), h('p', {class:'muted', text: verk + ' von ' + ges + ' verkauft, ' + Math.max(0, ges - verk) + ' noch frei. Anfragen kommen auch per Mail an info@.'})),
+        h('button', {class:'btn leer', type:'button', text:'Als Tabelle (CSV)', onclick:function(){
+          if(!shares) return;
+          download('anteilsscheine-' + D.heute + '.csv', csv([['Nr','Datum','Name','E-Mail','Anzahl','Betrag','Status','Nachricht','Notiz']].concat(shares.map(function(a){ return [a.nr, ts(a.created_at), a.name, a.email, a.anzahl, (a.anzahl * 10) + ' €', a.status, a.nachricht, a.notiz]; }))), 'text/csv;charset=utf-8');
+        }})),
+      h('div', {class:'note'}, 'Sobald das Geld da ist, auf „Bezahlt“ stellen. Dann zählt die Website automatisch mit, wie viele noch frei sind.'),
+      h('div', {class:'loading', text:'Wird geladen …'}));
+    api('GET', 'anteile').then(function(r){ shares = r.liste; wrap.replaceChild(shareList(), wrap.lastChild); }).catch(fail);
+    return wrap;
+  }
+  function shareList(){
+    var counts = {}; shares.forEach(function(a){ counts[a.status] = (counts[a.status] || 0) + 1; });
+    var F = [['alle','Alle', shares.length]].concat(ASTATUS.map(function(x){ return [x[0], x[1].replace(', noch nicht bezahlt',''), counts[x[0]] || 0]; }));
+    var chips = h('div', {class:'chips'}, F.map(function(x){ return h('button', {class:'chip', type:'button', 'aria-pressed': afilt === x[0] ? 'true' : 'false', onclick:function(){ afilt = x[0]; render(); }}, x[1], h('small', {text: String(x[2])})); }));
+    var list = shares.filter(function(a){ return afilt === 'alle' || a.status === afilt; });
+    return h('div', {class:'panel'}, chips,
+      list.length ? h('div', {class:'list'}, list.map(shareRow)) : h('div', {class:'empty', text: shares.length ? 'Keine Anfragen in diesem Filter.' : 'Noch keine Anfragen. Sie kommen über „Anteilsschein anfragen“ auf der Website.'}));
+  }
+  function shareRow(a){
+    var sel = h('select', {name:'status', 'aria-label':'Status'}, ASTATUS.map(function(x){ return h('option', {value:x[0], selected: a.status === x[0]}, x[1]); }));
+    var notiz = h('textarea', {name:'notiz', rows:2, placeholder:'Interne Notiz, z. B. „bar bei Emil bezahlt, 4.11.“'}); notiz.value = a.notiz || '';
+    var mail = 'mailto:' + encodeURIComponent(a.email) + '?subject=' + encodeURIComponent('Dein Anteilsschein ' + a.nr + ' bei Backpack Hero');
+    return h('details', {class:'order'},
+      h('summary', null, h('span', {class:'nr', text:a.nr}), h('span', {class:'nm'}, h('b', {text:a.name}), h('span', {class:'muted small hide-m', text:' · ' + ts(a.created_at)})), h('span', {class:'num hide-m', text: a.anzahl + ' × 10 €'}), aStatus(a.status)),
+      h('div', {class:'body'},
+        h('dl', null,
+          h('dt', {text:'Angefragt am'}), h('dd', {text: ts(a.created_at)}),
+          h('dt', {text:'E-Mail'}), h('dd', null, h('a', {href:mail, text:a.email})),
+          h('dt', {text:'Anzahl'}), h('dd', {text: a.anzahl + ' Anteilsschein' + (a.anzahl > 1 ? 'e' : '') + ' = ' + (a.anzahl * 10) + ' €'}),
+          a.nachricht ? h('dt', {text:'Nachricht'}) : null, a.nachricht ? h('dd', {text:a.nachricht}) : null,
+          a.updated_by ? h('dt', {text:'Zuletzt geändert'}) : null, a.updated_by ? h('dd', {text: ts(a.updated_at) + ' von ' + wer(a.updated_by)}) : null),
+        h('div', {class:'grid2'}, field('Status', sel), field('Notiz', notiz)),
+        h('div', {class:'row'},
+          h('button', {class:'btn klein', type:'button', text:'Speichern', onclick:function(){
+            api('PUT', 'anteile/' + a.id, {status: sel.value, notiz: notiz.value}).then(function(){ toast(a.nr + ' gespeichert.'); load(); }).catch(fail); }}),
+          h('a', {class:'btn klein leer', href:mail, text:'Anschreiben'}),
+          a.status !== 'bezahlt' ? h('button', {class:'btn klein leer', type:'button', text:'Löschen', onclick:function(){
+            if(confirm('Anfrage ' + a.nr + ' von ' + a.name + ' wirklich löschen?')) api('DELETE', 'anteile/' + a.id).then(function(){ toast('Gelöscht.'); load(); }).catch(fail); }}) : null)
+      ));
+  }
+
   /* ---------- Mail-Liste ---------- */
   function pMailliste(){
     var wrap = h('div', {class:'panel'},
@@ -515,7 +567,8 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
       ['faq_bekommen', 'Wie bekomme ich meinen?', 'Bestellen kannst du bald …', true],
       ['faq_bezahlen', 'Wie bezahle ich?', 'Sobald du bestellen kannst, läuft es so …', true],
       ['faq_klasse', 'Kann ich für eine ganze Klasse bestellen?', 'Ja, sobald es losgeht …', true],
-      ['faq_junior', 'Was ist eine Junior Company?', 'Ein Schulprojekt von Junior Achievement Austria …', true]]]
+      ['faq_junior', 'Was ist eine Junior Company?', 'Ein Schulprojekt von Junior Achievement Austria …', true],
+      ['faq_organizer', 'Was ist ein Rucksack-Organizer?', 'Ein Rucksack-Organizer bringt Ordnung in deinen Schulrucksack …', true]]]
   ];
   function pTexte(){
     var s = D.s;

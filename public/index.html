@@ -258,6 +258,15 @@ select:focus{outline:none;border-color:var(--dunkel);background:#fff}
 .fact b{display:block;font-size:30px;font-weight:800;line-height:1.1}
 .fact span{font-size:14px;color:#B7B2A6}
 .anteile .btn{margin-top:28px;border-color:var(--hell);background:var(--hell);color:var(--dunkel)}
+.anteil-form{grid-column:1/-1;background:rgba(243,240,232,.06);border:1px solid rgba(243,240,232,.12);color:var(--hell)}
+.anteil-form label{color:var(--hell)}
+.anteil-form .opt{font-weight:400;color:#B7B2A6}
+.anteil-form .check{color:#B7B2A6}
+.anteil-form .check a{color:var(--hell)}
+.anteil-form .btn{margin-top:0}
+.anteil-form .form-msg.ok{background:rgba(47,122,77,.25);color:#CFE6D7}
+.anteil-form .form-msg.err{background:rgba(200,65,47,.25);color:#F6D3CC}
+.anteil-hinweis{margin:0!important;font-size:14px;text-align:center}
 
 /* FAQ */
 .faq{max-width:820px}
@@ -680,7 +689,7 @@ footer{padding:72px 0 40px}
         <div class="kicker">Anteilsscheine</div>
         <h3>Steig bei uns ein. Ab 10 €.</h3>
         <p>Mit einem Anteilsschein wirst du Teilhaber von Backpack Hero. Am Ende des Schuljahres bekommst du dein Geld zurück, plus deinen Anteil am Gewinn. Ehrlich gesagt: Läuft es schlecht, kann es auch weniger sein. Das gehört zu einer echten Firma dazu.</p>
-        <a class="btn" href="mailto:info@backpackhero.at?subject=Anteilsschein%20Backpack%20Hero">Anteilsschein anfragen
+        <a class="btn" id="anteilBtn" aria-controls="anteilForm" aria-expanded="false" href="mailto:info@backpackhero.at?subject=Anteilsschein%20Backpack%20Hero">Anteilsschein anfragen
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
       </div>
       <div class="facts">
@@ -689,6 +698,19 @@ footer{padding:72px 0 40px}
         <div class="fact"><b id="anteileZahl">80</b><span id="anteileText">Anteilsscheine insgesamt</span></div>
         <div class="fact"><b>Mai</b><span>Auszahlung bei der Abschlussfeier</span></div>
       </div>
+      <form class="anteil-form" id="anteilForm" novalidate hidden>
+        <label class="hp" aria-hidden="true">Nicht ausfüllen<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+        <div class="row2">
+          <label>Name<input type="text" name="name" maxlength="100" autocomplete="name" required></label>
+          <label>E-Mail<input type="email" name="email" maxlength="254" autocomplete="email" required></label>
+        </div>
+        <label>Wie viele Anteilsscheine?<select name="anzahl" required><option value="1">1 Anteilsschein (10 €)</option><option value="2">2 Anteilsscheine (20 €)</option></select></label>
+        <label><span>Nachricht <span class="opt">(optional)</span></span><textarea name="nachricht" maxlength="1500" placeholder="Fragen? Schreib sie hier rein."></textarea></label>
+        <label class="check"><input type="checkbox" name="datenschutz" value="ja" required><span>Ich bin einverstanden, dass meine Angaben zur Bearbeitung meiner Anfrage verwendet werden. Mehr in der <a href="#datenschutz">Datenschutzerklärung</a>.</span></label>
+        <div class="form-msg" id="anteilMsg" role="status" aria-live="polite"></div>
+        <button class="btn btn-voll" type="submit" id="anteilSend">Anfrage schicken</button>
+        <p class="anteil-hinweis">Unverbindlich. Wir melden uns per Mail mit den Infos zur Bezahlung.</p>
+      </form>
     </div>
   </div>
 </section>
@@ -701,6 +723,10 @@ footer{padding:72px 0 40px}
       <h2>Fragen? Antworten.</h2>
     </div>
     <div class="faq reveal">
+      <details>
+        <summary>Was ist ein Rucksack-Organizer?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary>
+        <p data-edit="faq_organizer">Ein Rucksack-Organizer bringt Ordnung in deinen Schulrucksack oder deine Arbeitstasche, damit Hefte und Zettel nicht mehr lose herumfliegen. Backpack Hero ist ein Backpack-Organizer mit Ampelsystem: drei Fächer hinter einer roten, gelben und grünen Platte. Rot heißt noch zu tun, Gelb angefangen, Grün erledigt. So siehst du beim Öffnen sofort, was ansteht.</p>
+      </details>
       <details>
         <summary>Passt Backpack Hero in jeden Rucksack?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary>
         <p data-edit="faq_rucksack">Außen ist er ca. 23,2 cm breit, 9,5 cm tief und 26,3 cm hoch. Damit passt er in jeden Schulrucksack, in den auch ein A4-Heft passt. Jedes Fach ist innen 21,6 cm breit und 2,5 cm tief, also genug für mehrere Hefte. A4-Blätter und -Hefte schauen oben ein Stück raus, so greifst du sie leichter.</p>
@@ -799,7 +825,8 @@ footer{padding:72px 0 40px}
           <p><b>Verantwortlich</b><br>Backpack Hero Junior Company, HTL Vöcklabruck, Bahnhofstraße 42, 4840 Vöcklabruck, info@backpackhero.at</p>
           <p><b>Bestellungen</b><br>Wenn du bestellst, verarbeiten wir Name, E-Mail, Menge, Lieferart, bei Versand deine Lieferadresse und deine Nachricht, um die Bestellung abzuwickeln und eine Rechnung zu erstellen (Art. 6 Abs. 1 lit. b DSGVO). Bei Versand geben wir Name und Adresse an das Versandunternehmen weiter. Rechnungsdaten bewahren wir auf, solange es für die Abrechnung der Junior Company nötig ist.</p>
           <p><b>Mail-Liste</b><br>Wenn du dich einträgst, verarbeiten wir deine E-Mail-Adresse und, falls angegeben, deinen Vornamen und die gewünschte Anzahl. Wir nutzen das nur, um dir einmal Bescheid zu geben, sobald Backpack Hero bestellbar ist (Einwilligung, Art. 6 Abs. 1 lit. a DSGVO). Du kannst die Einwilligung jederzeit per Mail an uns widerrufen. Wir löschen die Daten spätestens mit Ende des Schuljahres, wenn die Junior Company aufgelöst wird.</p>
-          <p><b>Speicherung und E-Mails</b><br>Bestellungen und Einträge in die Mail-Liste speichern wir in einer Datenbank bei Cloudflare (siehe Hosting). Zugriff hat nur unser Team über einen geschützten Login. Über neue Bestellungen und einmal pro Woche über neue Einträge werden wir per E-Mail an unser Postfach bei Google (Gmail) informiert.</p>
+          <p><b>Anteilsscheine</b><br>Wenn du einen Anteilsschein anfragst, verarbeiten wir Name, E-Mail, Anzahl und deine Nachricht, um die Anfrage zu bearbeiten, die Bezahlung abzuwickeln und dir am Ende des Schuljahres dein Geld samt Gewinnanteil auszuzahlen (Art. 6 Abs. 1 lit. b DSGVO). Die Daten bewahren wir auf, bis die Junior Company abgerechnet ist.</p>
+          <p><b>Speicherung und E-Mails</b><br>Bestellungen, Anteilsschein-Anfragen und Einträge in die Mail-Liste speichern wir in einer Datenbank bei Cloudflare (siehe Hosting). Zugriff hat nur unser Team über einen geschützten Login. Über neue Bestellungen und Anteilsschein-Anfragen sowie einmal pro Woche über neue Einträge werden wir per E-Mail an unser Postfach bei Google (Gmail) informiert.</p>
           <p><b>Hosting</b><br>Die Seite und die Datenbank laufen bei Cloudflare (Cloudflare, Inc., USA). Cloudflare ist nach dem EU-US Data Privacy Framework zertifiziert. Beim Aufruf fallen technisch notwendige Server-Logs an (z. B. IP-Adresse, Zeitpunkt). Zum Schutz vor Spam speichern wir bei Formular-Eingaben kurzzeitig einen verschlüsselten Wert (Hash) aus deiner IP-Adresse, der sich täglich ändert und nach spätestens zwei Tagen gelöscht wird (berechtigtes Interesse, Art. 6 Abs. 1 lit. f DSGVO).</p>
           <p><b>Keine Cookies, kein Tracking</b><br>Auf der Website setzen wir keine Cookies und keine Analyse-Tools ein. Nur der interne Login für unser Team setzt ein technisch notwendiges Cookie. Die Schrift ist direkt in die Seite eingebettet und wird nicht von Google geladen.</p>
           <p><b>Deine Rechte</b><br>Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit und Widerspruch. Schreib uns dafür einfach eine E-Mail. Beschweren kannst du dich bei der Österreichischen Datenschutzbehörde (dsb.gv.at).</p>
@@ -1099,7 +1126,7 @@ footer{padding:72px 0 40px}
     // Anteilsscheine
     var ges = parseInt(s.anteile_gesamt, 10) || 80, verk = parseInt(s.anteile_verkauft, 10);
     if(!isNaN(verk)){
-      var frei = Math.max(0, ges - verk);
+      var frei = Math.max(0, ges - verk); anteileFrei = frei;
       $('anteileZahl').textContent = frei ? 'noch ' + frei : 'alle weg';
       $('anteileText').textContent = frei ? 'von ' + ges + ' Anteilsscheinen frei' : 'Danke an alle ' + ges + ' Anteilseigner!';
     }
@@ -1157,6 +1184,37 @@ footer{padding:72px 0 40px}
       : formspree();
     p.catch(function(){ sayIn(lMsg, 'Keine Verbindung. Probier es gleich nochmal.', false); })
      .then(function(){ lBtn.disabled = false; lBtn.textContent = 'Benachrichtige mich'; });
+  });
+
+  /* ---------- Formular: Anteilsschein ---------- */
+  var anteileFrei = null;
+  var aBtn = $('anteilBtn'), af = $('anteilForm'), aMsg = $('anteilMsg'), aSend = $('anteilSend');
+  aBtn.addEventListener('click', function(e){
+    if(!API) return; // ohne Schnittstelle (z. B. GitHub Pages) bleibt es der Mail-Link
+    e.preventDefault();
+    if(anteileFrei === 0){ sayIn(aMsg, 'Leider sind schon alle Anteilsscheine vergeben.', false); }
+    var auf = af.hidden; af.hidden = !auf; aBtn.setAttribute('aria-expanded', auf ? 'true' : 'false');
+    aSend.disabled = anteileFrei === 0;
+    if(auf && anteileFrei !== 0){ var zwei = af.elements.anzahl.querySelector('option[value="2"]'); zwei.disabled = anteileFrei === 1; if(anteileFrei === 1) af.elements.anzahl.value = '1'; af.elements.name.focus(); }
+  });
+  af.addEventListener('input', function(){ if(aMsg.className.indexOf('err') > -1) aMsg.className = 'form-msg'; });
+  af.addEventListener('submit', function(e){
+    e.preventDefault();
+    if(!af.checkValidity()){
+      var bad = af.querySelector(':invalid'); bad.focus();
+      sayIn(aMsg, bad.type === 'checkbox' ? 'Bitte bestätige noch die Datenschutz-Einwilligung.' : bad.name === 'email' ? 'Bitte gib eine gültige E-Mail-Adresse ein.' : 'Bitte gib deinen Namen an.', false);
+      return;
+    }
+    aSend.disabled = true; aSend.textContent = 'Wird gesendet …';
+    var body = { name: af.elements.name.value, email: af.elements.email.value, anzahl: af.elements.anzahl.value, nachricht: af.elements.nachricht.value, datenschutz: af.elements.datenschutz.checked, website: af.elements.website.value };
+    fetch('/api/anteil', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(j.ok){ af.reset(); sayIn(aMsg, 'Danke! Deine Anfrage' + (j.nr ? ' ' + j.nr : '') + ' ist bei uns. Wir melden uns per Mail mit den Infos zur Bezahlung.', true); }
+        else sayIn(aMsg, j.error || 'Da ist was schiefgelaufen.', false);
+      })
+      .catch(function(){ sayIn(aMsg, 'Keine Verbindung. Probier es gleich nochmal oder schreib an info@backpackhero.at.', false); })
+      .then(function(){ aSend.disabled = false; aSend.textContent = 'Anfrage schicken'; });
   });
 
   /* ---------- Formular: Bestellung ---------- */
