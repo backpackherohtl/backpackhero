@@ -9,6 +9,8 @@ Ordnung, die mitgeht. Website der Backpack Hero Junior Company (Schulprojekt im 
 | `public/index.html` | Die Website (eine Datei, Bild und Schrift eingebettet) |
 | `public/admin/index.html` | Admin-Bereich unter `/admin` |
 | `public/admin/qrcode.js` | QR-Code-Erzeugung für die Zahlungs-QR-Codes (qrcode-generator von Kazuhiko Arase, MIT-Lizenz) |
+| `public/admin/pdf-lib.min.js` | PDF-Erzeugung für den vorausgefüllten Optionsschein (pdf-lib von Andrew Dillon, MIT-Lizenz) |
+| `public/admin/optionsschein-vorlage.pdf` | Blanko-Optionsschein von Junior Achievement Austria, wird im Admin pro Anteilsschein vorausgefüllt |
 | `public/fonts/` | Schrift Archivo für den Admin |
 | `src/worker.js` | Backend: Datenbank, öffentliche Schnittstelle, Admin-Schnittstelle, Wochenmail |
 | `wrangler.jsonc` | Cloudflare-Konfiguration (Datenbank, Login-Prüfung, Zeitplan) |

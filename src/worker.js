@@ -33,6 +33,9 @@ const MIGRATIONS = [
   // Anteilsscheine: wie bezahlt (bar / ueberweisung) und woher (website / manuell)
   `ALTER TABLE anteile ADD COLUMN zahlart TEXT DEFAULT ''`,
   `ALTER TABLE anteile ADD COLUMN quelle TEXT DEFAULT 'website'`,
+  // Für den Optionsschein von Junior Achievement
+  `ALTER TABLE anteile ADD COLUMN telefon TEXT DEFAULT ''`,
+  `ALTER TABLE anteile ADD COLUMN adresse TEXT DEFAULT ''`,
 ];
 
 // Einstellungen mit Standardwerten. Texte (text_*, dat_*, faq_*) sind leer = Text aus der Seite bleibt.
@@ -530,7 +533,7 @@ async function admin(req, env, path, email) {
     if (m === 'POST' && !id) {
       let b;
       try { b = await readJson(req, 6000); } catch { return fail('Ungültige Anfrage.'); }
-      const d = { name: str(b.name, 100), email: str(b.email, 254).toLowerCase(), anzahl: intOrNull(b.anzahl, 1, ANTEILE_PRO_PERSON), zahlart: str(b.zahlart, 20), notiz: str(b.notiz, 1000), nr: intOrNull(b.nr, 1, 9999), bezahlt: b.bezahlt === true };
+      const d = { name: str(b.name, 100), email: str(b.email, 254).toLowerCase(), anzahl: intOrNull(b.anzahl, 1, ANTEILE_PRO_PERSON), zahlart: str(b.zahlart, 20), notiz: str(b.notiz, 1000), nr: intOrNull(b.nr, 1, 9999), bezahlt: b.bezahlt === true, telefon: str(b.telefon, 40), adresse: str(b.adresse, 200) };
       if (d.name.length < 2) return fail('Bitte den Namen eintragen (Vor- und Nachname, wegen Anteilseigner-Verzeichnis).');
       if (d.email && !isEmail(d.email)) return fail('Die E-Mail-Adresse stimmt nicht. Leer lassen geht auch.');
       if (!d.anzahl || Number.isNaN(d.anzahl)) return fail(`Bitte 1 oder ${ANTEILE_PRO_PERSON} Anteilsscheine wählen.`);
@@ -550,8 +553,8 @@ async function admin(req, env, path, email) {
         if (da) return fail(`Die Nummer ${nrText} gibt es schon (${da.name}). Nimm eine andere oder lass das Feld leer.`, 409);
       }
       const ts = now();
-      const ins = await env.DB.prepare("INSERT INTO anteile (created_at, name, email, anzahl, nachricht, status, notiz, updated_at, updated_by, zahlart, quelle) VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, ?, 'manuell')")
-        .bind(ts, d.name, d.email, d.anzahl, status, d.notiz, ts, email, d.zahlart).run();
+      const ins = await env.DB.prepare("INSERT INTO anteile (created_at, name, email, anzahl, nachricht, status, notiz, updated_at, updated_by, zahlart, quelle, telefon, adresse) VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, ?, 'manuell', ?, ?)")
+        .bind(ts, d.name, d.email, d.anzahl, status, d.notiz, ts, email, d.zahlart, d.telefon, d.adresse).run();
       const newId = ins.meta.last_row_id;
       const vorher = intOrNull(s.anteile_nr_vorher, 0, 9999) || 0;
       const row = d.nr
@@ -583,15 +586,17 @@ async function admin(req, env, path, email) {
       const notiz = b.notiz === undefined ? alt.notiz : str(b.notiz, 1000);
       const zahlart = b.zahlart === undefined ? (alt.zahlart || '') : str(b.zahlart, 20);
       if (!ZAHLART.includes(zahlart)) return fail('Unbekannte Zahlungsart.');
+      const telefon = b.telefon === undefined ? (alt.telefon || '') : str(b.telefon, 40);
+      const adresse = b.adresse === undefined ? (alt.adresse || '') : str(b.adresse, 200);
       const ts = now();
-      const stmts = [env.DB.prepare('UPDATE anteile SET status = ?, notiz = ?, zahlart = ?, updated_at = ?, updated_by = ? WHERE id = ?').bind(status, notiz, zahlart, ts, email, id)];
+      const stmts = [env.DB.prepare('UPDATE anteile SET status = ?, notiz = ?, zahlart = ?, telefon = ?, adresse = ?, updated_at = ?, updated_by = ? WHERE id = ?').bind(status, notiz, zahlart, telefon, adresse, ts, email, id)];
       // Zähler „verkauft“ mitführen: bezahlt zählt, alles andere nicht
       if (status !== alt.status && (status === 'bezahlt' || alt.status === 'bezahlt')) {
         const neu = verkauft + (status === 'bezahlt' ? alt.anzahl : -alt.anzahl);
         if (status === 'bezahlt' && gesamt && neu > gesamt) return fail(`Damit wären ${neu} von ${gesamt} Anteilsscheinen verkauft. Bitte unter „Verkauf“ die Gesamtzahl prüfen.`, 409);
         stmts.push(setVerkauft(neu));
       }
-      const det = [status !== alt.status ? `Status ${alt.status} → ${status}` : '', zahlart !== (alt.zahlart || '') ? `Zahlung ${ZAHLART_TEXT[alt.zahlart || '']} → ${ZAHLART_TEXT[zahlart]}` : '', notiz !== alt.notiz ? 'Notiz geändert' : ''].filter(Boolean).join(', ');
+      const det = [status !== alt.status ? `Status ${alt.status} → ${status}` : '', zahlart !== (alt.zahlart || '') ? `Zahlung ${ZAHLART_TEXT[alt.zahlart || '']} → ${ZAHLART_TEXT[zahlart]}` : '', notiz !== alt.notiz ? 'Notiz geändert' : '', telefon !== (alt.telefon || '') || adresse !== (alt.adresse || '') ? 'Kontaktdaten geändert' : ''].filter(Boolean).join(', ');
       if (det) stmts.push(env.DB.prepare('INSERT INTO protokoll (ts, email, aktion, details) VALUES (?, ?, ?, ?)').bind(ts, email, `Anteilsschein ${alt.nr}`, det));
       await env.DB.batch(stmts);
       return json({ ok: true });

@@ -523,7 +523,7 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
       h('div', {class:'head'}, h('div', null, h('h1', {text:'Anteilsscheine'}), h('p', {class:'muted', text: verk + ' von ' + ges + ' verkauft, ' + Math.max(0, ges - verk) + ' noch frei. Anfragen kommen auch per Mail an info@.'})),
         h('button', {class:'btn leer', type:'button', text:'Als Tabelle (CSV)', onclick:function(){
           if(!shares) return;
-          download('anteilsscheine-' + D.heute + '.csv', csv([['Nr','Datum','Name','E-Mail','Anzahl','Betrag','Status','Zahlung','Woher','Nachricht','Notiz']].concat(shares.map(function(a){ return [a.nr, ts(a.created_at), a.name, a.email, a.anzahl, (a.anzahl * 10) + ' €', a.status, ZTEXT[a.zahlart || ''], a.quelle === 'manuell' ? 'selbst eingetragen' : 'Website', a.nachricht, a.notiz]; }))), 'text/csv;charset=utf-8');
+          download('anteilsscheine-' + D.heute + '.csv', csv([['Nr','Datum','Name','E-Mail','Telefon','Adresse','Anzahl','Betrag','Status','Zahlung','Woher','Nachricht','Notiz']].concat(shares.map(function(a){ return [a.nr, ts(a.created_at), a.name, a.email, a.telefon, a.adresse, a.anzahl, (a.anzahl * 10) + ' €', a.status, ZTEXT[a.zahlart || ''], a.quelle === 'manuell' ? 'selbst eingetragen' : 'Website', a.nachricht, a.notiz]; }))), 'text/csv;charset=utf-8');
         }})),
       h('div', {class:'note'}, 'Sobald das Geld da ist, auf „Bezahlt“ stellen. Dann zählt die Website automatisch mit, wie viele noch frei sind.'),
       neuAnteil(),
@@ -546,6 +546,9 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
       h('div', {class:'grid2'},
         field('Name ', inp('name', '', {maxlength:100, required:true, placeholder:'Vor- und Nachname', autocomplete:'off'}), '(fürs Anteilseigner-Verzeichnis)'),
         field('E-Mail ', inp('email', '', {type:'email', maxlength:254, placeholder:'optional', autocomplete:'off'}), '(optional, für Einladung und Auszahlung praktisch)')),
+      h('div', {class:'grid2'},
+        field('Telefon ', inp('telefon', '', {type:'tel', maxlength:40, placeholder:'optional', autocomplete:'off'}), '(optional, für den Optionsschein)'),
+        field('Adresse ', inp('adresse', '', {maxlength:200, placeholder:'Straße Nr, PLZ Ort', autocomplete:'off'}), '(optional, für den Optionsschein)')),
       h('div', {class:'grid3'},
         field('Anzahl', h('select', {name:'anzahl'}, h('option', {value:'1'}, '1 Anteilsschein (10 €)'), h('option', {value:'2'}, '2 Anteilsscheine (20 €)'))),
         field('Bezahlt mit', h('select', {name:'zahlart'}, h('option', {value:'bar'}, 'Bar'), h('option', {value:'ueberweisung'}, 'Überweisung'))),
@@ -558,7 +561,7 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
     f.addEventListener('submit', function(e){
       e.preventDefault();
       var btn = f.querySelector('button[type=submit]'); btn.disabled = true;
-      var o = {name: f.elements.name.value, email: f.elements.email.value, anzahl: +f.elements.anzahl.value, zahlart: f.elements.zahlart.value, nr: f.elements.nr.value, notiz: f.elements.notiz.value, bezahlt: f.elements.bezahlt.checked};
+      var o = {name: f.elements.name.value, email: f.elements.email.value, anzahl: +f.elements.anzahl.value, zahlart: f.elements.zahlart.value, nr: f.elements.nr.value, notiz: f.elements.notiz.value, bezahlt: f.elements.bezahlt.checked, telefon: f.elements.telefon.value, adresse: f.elements.adresse.value};
       api('POST', 'anteile', o).then(function(r){ toast(r.nr + ' eingetragen' + (r.status === 'bezahlt' ? ' und als bezahlt gezählt.' : ', wartet auf die Überweisung.')); load(); })
         .catch(function(err){ btn.disabled = false; fail(err); });
     });
@@ -570,6 +573,8 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
     var sel = h('select', {name:'status', 'aria-label':'Status'}, ASTATUS.map(function(x){ return h('option', {value:x[0], selected: a.status === x[0]}, x[1]); }));
     var zsel = h('select', {name:'zahlart', 'aria-label':'Bezahlt mit'}, ZART.map(function(x){ return h('option', {value:x[0], selected: (a.zahlart || '') === x[0]}, x[1]); }));
     var notiz = h('textarea', {name:'notiz', rows:2, placeholder:'Interne Notiz, z. B. „bar bei Emil bezahlt, 4.11.“'}); notiz.value = a.notiz || '';
+    var tel = inp('telefon', a.telefon, {type:'tel', maxlength:40, placeholder:'für den Optionsschein'});
+    var adr = inp('adresse', a.adresse, {maxlength:200, placeholder:'Straße Nr, PLZ Ort'});
     var mail = a.email ? 'mailto:' + encodeURIComponent(a.email) + '?subject=' + encodeURIComponent('Dein Anteilsschein ' + a.nr + ' bei Backpack Hero') : null;
     var lokal = a.quelle === 'manuell';
     return h('details', {class:'order'},
@@ -583,15 +588,79 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
           a.nachricht ? h('dt', {text:'Nachricht'}) : null, a.nachricht ? h('dd', {text:a.nachricht}) : null,
           a.updated_by ? h('dt', {text:'Zuletzt geändert'}) : null, a.updated_by ? h('dd', {text: ts(a.updated_at) + ' von ' + wer(a.updated_by)}) : null),
         h('div', {class:'grid3'}, field('Status', sel), field('Bezahlt mit', zsel), field('Notiz', notiz)),
+        h('div', {class:'grid2'}, field('Telefon', tel), field('Adresse', adr)),
         h('div', {class:'row'},
           h('button', {class:'btn klein', type:'button', text:'Speichern', onclick:function(){
             if(sel.value === 'bezahlt' && !zsel.value){ toast('Bitte noch auswählen: bar oder Überweisung.', true); zsel.focus(); return; }
-            api('PUT', 'anteile/' + a.id, {status: sel.value, zahlart: zsel.value, notiz: notiz.value}).then(function(){ toast(a.nr + ' gespeichert.'); load(); }).catch(fail); }}),
+            api('PUT', 'anteile/' + a.id, {status: sel.value, zahlart: zsel.value, notiz: notiz.value, telefon: tel.value, adresse: adr.value}).then(function(){ toast(a.nr + ' gespeichert.'); load(); }).catch(fail); }}),
           a.status !== 'abgesagt' ? h('button', {class:'btn klein leer', type:'button', text:'Zahlungs-QR', onclick:function(){ zahlQR(a); }}) : null,
+          a.status !== 'abgesagt' ? h('button', {class:'btn klein leer', type:'button', text:'Optionsschein (PDF)', onclick:function(e){
+            // Ungespeicherte Eingaben (Telefon, Adresse) gleich mitnehmen
+            var b = e.currentTarget; b.disabled = true;
+            optionsschein({nr: a.nr, name: a.name, email: a.email, anzahl: a.anzahl, telefon: tel.value, adresse: adr.value}).catch(function(err){ toast('PDF ging nicht: ' + (err && err.message || err), true); }).then(function(){ b.disabled = false; }); }}) : null,
           mail ? h('a', {class:'btn klein leer', href:mail, text:'Anschreiben'}) : null,
           a.status !== 'bezahlt' ? h('button', {class:'btn klein leer', type:'button', text:'Löschen', onclick:function(){
             if(confirm('Anfrage ' + a.nr + ' von ' + a.name + ' wirklich löschen?')) api('DELETE', 'anteile/' + a.id).then(function(){ toast('Gelöscht.'); load(); }).catch(fail); }}) : null)
       ));
+  }
+
+  /* ---------- Optionsschein (Vorlage von Junior Achievement, vorausgefüllt) ---------- */
+  var FIRMA = 'Backpack Hero Junior Company', SITZ = 'Bahnhofstraße 42, 4840 Vöcklabruck', ORT = 'Vöcklabruck';
+  var pdfLibLaden = null;
+  function ladePdfLib(){
+    if(window.PDFLib) return Promise.resolve(window.PDFLib);
+    if(!pdfLibLaden) pdfLibLaden = new Promise(function(ok, nein){ var sc = h('script', {src:'/admin/pdf-lib.min.js'}); sc.onload = function(){ ok(window.PDFLib); }; sc.onerror = function(){ pdfLibLaden = null; nein(new Error('Bibliothek nicht geladen')); }; document.head.appendChild(sc); });
+    return pdfLibLaden;
+  }
+  // Telefon: Die Vorlage hat schon „+43“ vorgedruckt, also österreichische Nummern ohne Vorwahl-Präfix
+  function telOhne43(t){
+    t = (t || '').trim(); if(!t) return '';
+    var n = t.replace(/[^\d+]/g, '');
+    if(/^\+43/.test(n)) return t.replace(/^\s*\+\s*4\s*3\s*/, '').replace(/^\(0\)\s*/, '');
+    if(/^0043/.test(n)) return t.replace(/^\s*0\s*0\s*4\s*3\s*/, '');
+    if(/^0[1-9]/.test(n)) return t.replace(/^\s*0\s*/, '');
+    return null; // andere Länder: komplett schreiben, „+43“ durchstreichen
+  }
+  function optionsschein(a){
+    return Promise.all([ladePdfLib(), fetch('/admin/optionsschein-vorlage.pdf', {credentials:'same-origin'}).then(function(r){ if(!r.ok) throw new Error('Vorlage fehlt'); return r.arrayBuffer(); })]).then(function(x){
+      var L = x[0];
+      return L.PDFDocument.load(x[1]).then(function(doc){
+        return Promise.all([doc.embedFont(L.StandardFonts.Helvetica), doc.embedFont(L.StandardFonts.HelveticaBold)]).then(function(f){
+          var reg = f[0], bold = f[1], pg = doc.getPages()[0], H = pg.getHeight(), dunkel = L.rgb(0.08, 0.09, 0.10);
+          // Zeichen, die die Standardschrift nicht kann (z. B. ć), ohne Akzent schreiben
+          function sauber(font, t){ return Array.from(String(t || '')).map(function(ch){ try { font.encodeText(ch); return ch; } catch(e){ var b = ch.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); try { font.encodeText(b); return b; } catch(e2){ return '?'; } } }).join(''); }
+          // top = Abstand der Grundlinie von oben (wie im Vorlagen-PDF gemessen)
+          function text(t, x, top, size, maxW, font){ font = font || reg; t = sauber(font, t); if(!t) return; while(maxW && size > 6.5 && font.widthOfTextAtSize(t, size) > maxW) size -= 0.5; pg.drawText(t, {x:x, y:H - top, size:size, font:font, color:dunkel}); }
+          function mitte(t, cx, top, size){ t = sauber(reg, t); var w = reg.widthOfTextAtSize(t, size); pg.drawText(t, {x:cx - w / 2, y:H - top, size:size, font:reg, color:dunkel}); }
+          // Firma und Sitz auf die Linien rechts oben
+          text(FIRMA, 348, 162, 12, 205, bold);
+          text(SITZ, 352, 222, 11, 205);
+          // Betrag einkreisen
+          var cx = a.anzahl > 1 ? 219.7 : 164.9;
+          pg.drawEllipse({x:cx, y:H - 191.5, xScale:24, yScale:13, borderColor:dunkel, borderWidth:1.6});
+          // Daten der Person
+          text(a.name, 216, 256, 12, 336, bold);
+          text(a.email, 216, 294.5, 12, 336);
+          var t43 = telOhne43(a.telefon);
+          if(t43 === null){ pg.drawLine({start:{x:176.5, y:H - 322.5}, end:{x:202.5, y:H - 322.5}, thickness:1, color:dunkel}); text(a.telefon, 216, 325.5, 12, 336); }
+          else text(t43, 216, 325.5, 12, 336);
+          text(a.adresse, 216, 356, 12, 336);
+          // Ort und Datum für die Junior Company (unterschreibt ihr beim Übergeben)
+          var d = new Date(), heute = ('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + d.getFullYear();
+          mitte(ORT + ', ' + heute, 131, 439, 11);
+          // Unsere Nummer klein oben links, damit Schein und Liste zusammenpassen
+          pg.drawText(sauber(reg, 'Nr. ' + a.nr), {x:59, y:H - 118, size:9, font:reg, color:L.rgb(0.33, 0.32, 0.29)});
+          doc.setTitle('Optionsschein ' + a.nr + ' ' + a.name);
+          return doc.save();
+        });
+      });
+    }).then(function(bytes){
+      var datei = 'Optionsschein-' + a.nr + '-' + a.name.replace(/ß/g, 'ss').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9-]+/g, '_').replace(/^_+|_+$/g, '') + '.pdf';
+      var url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
+      var l = h('a', {href:url, download:datei}); document.body.appendChild(l); l.click();
+      setTimeout(function(){ URL.revokeObjectURL(url); l.remove(); }, 2000);
+      toast('Optionsschein ' + a.nr + ' heruntergeladen.' + (a.telefon && a.adresse ? '' : ' Fehlendes einfach mit der Hand ausfüllen.'));
+    });
   }
 
   /* ---------- Zahlungs-QR (EPC-QR-Code, „Zahlen mit Code“) ---------- */
