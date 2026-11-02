@@ -564,16 +564,19 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
         field('Anzahl', h('select', {name:'anzahl'}, h('option', {value:'1'}, '1 Anteilsschein (10 €)'), h('option', {value:'2'}, '2 Anteilsscheine (20 €)'))),
         field('Bezahlt mit', h('select', {name:'zahlart'}, h('option', {value:'bar'}, 'Bar'), h('option', {value:'ueberweisung'}, 'Überweisung'))),
         field('Nummer ', inp('nr', '', {type:'number', min:1, inputmode:'numeric', placeholder:'leer = nächste freie'}), '(nur für alte, z. B. 3 = AS-003)')),
+      sw('gezaehlt', 'Alter Anteilsschein, steht schon im Zähler', 'An: wird eingetragen, aber nicht nochmal zu „verkauft“ dazugezählt. Für die, die ihr vor der Website verkauft und schon mitgezählt habt.', false),
       h('div', {hidden:true, 'data-ueb':''}, sw('bezahlt', 'Geld ist schon am Konto', 'Aus: Steht als „Neu“ drin, bis die Überweisung da ist. Den QR-Code dafür gibt es dann in der Liste.', false)),
       field('Notiz', h('textarea', {name:'notiz', rows:2, maxlength:1000, placeholder:'z. B. „am Stand verkauft, Emil hat kassiert“'})),
       h('div', null, h('button', {class:'btn', type:'submit', text:'Eintragen'})));
     var ueb = f.querySelector('[data-ueb]');
     f.elements.zahlart.addEventListener('change', function(){ ueb.hidden = f.elements.zahlart.value !== 'ueberweisung'; });
+    // Nummer innerhalb der alten (z. B. 1 bis 6): Schalter automatisch an
+    f.elements.nr.addEventListener('input', function(){ var n = parseInt(f.elements.nr.value, 10), v = parseInt(D.s.anteile_nr_vorher, 10) || 0; f.elements.gezaehlt.checked = !!(n && n <= v); });
     f.addEventListener('submit', function(e){
       e.preventDefault();
       var btn = f.querySelector('button[type=submit]'); btn.disabled = true;
-      var o = {name: f.elements.name.value, email: f.elements.email.value, anzahl: +f.elements.anzahl.value, zahlart: f.elements.zahlart.value, nr: f.elements.nr.value, notiz: f.elements.notiz.value, bezahlt: f.elements.bezahlt.checked, telefon: f.elements.telefon.value, adresse: f.elements.adresse.value};
-      api('POST', 'anteile', o).then(function(r){ jaHinweis = r.nr + ' (' + o.name.trim() + ')'; toast(r.nr + ' eingetragen' + (r.status === 'bezahlt' ? ' und als bezahlt gezählt.' : ', wartet auf die Überweisung.')); load(); window.scrollTo(0, 0); })
+      var o = {name: f.elements.name.value, email: f.elements.email.value, anzahl: +f.elements.anzahl.value, zahlart: f.elements.zahlart.value, nr: f.elements.nr.value, notiz: f.elements.notiz.value, bezahlt: f.elements.bezahlt.checked, telefon: f.elements.telefon.value, adresse: f.elements.adresse.value, gezaehlt: f.elements.gezaehlt.checked};
+      api('POST', 'anteile', o).then(function(r){ jaHinweis = r.nr + ' (' + o.name.trim() + ')'; toast(r.nr + ' eingetragen' + (r.status === 'bezahlt' ? (o.gezaehlt ? ', Zähler bleibt gleich (war schon drin).' : ' und als bezahlt gezählt.') : ', wartet auf die Überweisung.')); load(); window.scrollTo(0, 0); })
         .catch(function(err){ btn.disabled = false; fail(err); });
     });
     return h('details', {class:'order'},

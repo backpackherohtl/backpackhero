@@ -533,7 +533,7 @@ async function admin(req, env, path, email) {
     if (m === 'POST' && !id) {
       let b;
       try { b = await readJson(req, 6000); } catch { return fail('Ungültige Anfrage.'); }
-      const d = { name: str(b.name, 100), email: str(b.email, 254).toLowerCase(), anzahl: intOrNull(b.anzahl, 1, ANTEILE_PRO_PERSON), zahlart: str(b.zahlart, 20), notiz: str(b.notiz, 1000), nr: intOrNull(b.nr, 1, 9999), bezahlt: b.bezahlt === true, telefon: str(b.telefon, 40), adresse: str(b.adresse, 200) };
+      const d = { name: str(b.name, 100), email: str(b.email, 254).toLowerCase(), anzahl: intOrNull(b.anzahl, 1, ANTEILE_PRO_PERSON), zahlart: str(b.zahlart, 20), notiz: str(b.notiz, 1000), nr: intOrNull(b.nr, 1, 9999), bezahlt: b.bezahlt === true, telefon: str(b.telefon, 40), adresse: str(b.adresse, 200), gezaehlt: b.gezaehlt === true };
       if (d.name.length < 2) return fail('Bitte den Namen eintragen (Vor- und Nachname, wegen Anteilseigner-Verzeichnis).');
       if (d.email && !isEmail(d.email)) return fail('Die E-Mail-Adresse stimmt nicht. Leer lassen geht auch.');
       if (!d.anzahl || Number.isNaN(d.anzahl)) return fail(`Bitte 1 oder ${ANTEILE_PRO_PERSON} Anteilsscheine wählen.`);
@@ -542,7 +542,9 @@ async function admin(req, env, path, email) {
       const status = d.zahlart === 'bar' || d.bezahlt ? 'bezahlt' : 'neu';
       const s = await getSettings(env);
       const verkauft = Number(s.anteile_verkauft) || 0, gesamt = Number(s.anteile_gesamt) || 0;
-      if (status === 'bezahlt' && gesamt && verkauft + d.anzahl > gesamt) return fail(`Damit wären ${verkauft + d.anzahl} von ${gesamt} Anteilsscheinen verkauft. Bitte unter „Verkauf“ die Zahlen prüfen.`, 409);
+      // Alte Anteilsscheine, die schon im Zähler „verkauft“ stehen, nicht nochmal zählen
+      const zaehlen = status === 'bezahlt' && !d.gezaehlt;
+      if (zaehlen && gesamt && verkauft + d.anzahl > gesamt) return fail(`Damit wären ${verkauft + d.anzahl} von ${gesamt} Anteilsscheinen verkauft. Bitte unter „Verkauf“ die Zahlen prüfen.`, 409);
       if (d.email) {
         const schon = await env.DB.prepare("SELECT COALESCE(SUM(anzahl),0) AS n FROM anteile WHERE email = ? AND status != 'abgesagt'").bind(d.email).first();
         if (schon.n + d.anzahl > ANTEILE_PRO_PERSON) return fail(`Mit dieser E-Mail-Adresse gibt es schon ${schon.n} Anteilsschein${schon.n === 1 ? '' : 'e'}. Pro Person gehen höchstens ${ANTEILE_PRO_PERSON}.`, 409);
@@ -560,8 +562,8 @@ async function admin(req, env, path, email) {
       const row = d.nr
         ? await env.DB.prepare('UPDATE anteile SET nr = ? WHERE id = ? RETURNING nr').bind(`AS-${String(d.nr).padStart(3, '0')}`, newId).first()
         : await env.DB.prepare("UPDATE anteile SET nr = 'AS-' || printf('%03d', MAX(?, COALESCE((SELECT MAX(CAST(substr(nr, 4) AS INTEGER)) FROM anteile WHERE nr LIKE 'AS-%'), 0)) + 1) WHERE id = ? RETURNING nr").bind(vorher, newId).first();
-      const stmts = [env.DB.prepare('INSERT INTO protokoll (ts, email, aktion, details) VALUES (?, ?, ?, ?)').bind(ts, email, `Anteilsschein ${row.nr} eingetragen`, `${d.name}, ${d.anzahl} Stück, ${ZAHLART_TEXT[d.zahlart]}, ${status}`)];
-      if (status === 'bezahlt') stmts.push(env.DB.prepare(`INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('anteile_verkauft', ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`).bind(String(verkauft + d.anzahl), ts, email));
+      const stmts = [env.DB.prepare('INSERT INTO protokoll (ts, email, aktion, details) VALUES (?, ?, ?, ?)').bind(ts, email, `Anteilsschein ${row.nr} eingetragen`, `${d.name}, ${d.anzahl} Stück, ${ZAHLART_TEXT[d.zahlart]}, ${status}${d.gezaehlt ? ', war schon im Zähler' : ''}`)];
+      if (zaehlen) stmts.push(env.DB.prepare(`INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('anteile_verkauft', ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`).bind(String(verkauft + d.anzahl), ts, email));
       await env.DB.batch(stmts);
       return json({ ok: true, nr: row.nr, status });
     }
