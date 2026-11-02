@@ -149,6 +149,29 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
 .note{border-radius:16px;padding:14px 16px;background:#F8EDD1;font-size:15px}
 .loading{padding:60px;text-align:center;color:var(--text-2)}
 
+/* Zahlungs-QR */
+.ov{position:fixed;inset:0;z-index:40;background:rgba(21,23,26,.55);display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto}
+.ov-box{background:var(--hell);border-radius:var(--r-gross);max-width:560px;width:100%;padding:24px;display:grid;gap:18px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.zs{background:#fff;border:1px solid var(--linie);border-radius:var(--r);padding:26px;display:grid;gap:18px}
+.zs .k{font-size:13px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--text-2)}
+.zs .dots{display:inline-flex;gap:5px;margin-right:8px;vertical-align:1px}.zs .dots i{width:8px;height:8px;border-radius:50%;display:block}
+.zs h2{font-size:26px}
+.zs .qr{display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center}
+.zs .qr svg{width:200px;height:200px;display:block}
+.zs .qr p{font-size:15px;color:var(--text-2)}
+.zs dl{margin:0;display:grid;grid-template-columns:130px 1fr;gap:6px 14px;font-size:15px}
+.zs dt{color:var(--text-2)}.zs dd{margin:0;overflow-wrap:anywhere;font-weight:600}
+.zs .fuss{font-size:13px;color:var(--text-2);border-top:1px solid var(--hell-2);padding-top:12px}
+@media (max-width:620px){ .zs{padding:18px} .zs .qr{grid-template-columns:1fr;justify-items:center;text-align:center} .zs dl{grid-template-columns:1fr} .zs dt{margin-top:6px} }
+@media print{
+  body.ov-open .top, body.ov-open .layout, body.ov-open .toast, body.ov-open .ov-acts, body.ov-open .ov-head{display:none!important}
+  body.ov-open{background:#fff}
+  body.ov-open .ov{position:static;background:none;padding:0;display:block}
+  body.ov-open .ov-box{box-shadow:none;background:none;padding:0;max-width:none}
+  body.ov-open .zs{border:0;padding:0;max-width:170mm}
+  body.ov-open .zs .qr svg{width:60mm;height:60mm}
+}
+
 @media (max-width:960px){
   .layout{grid-template-columns:1fr;padding-top:16px}
   nav.tabs{position:static;display:flex;overflow-x:auto;gap:6px;padding-bottom:6px;margin:0 -20px;padding-left:20px;padding-right:20px;scrollbar-width:none}
@@ -204,6 +227,7 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="/admin/qrcode.js"></script>
 <script>
 (function(){
   'use strict';
@@ -255,6 +279,7 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
   function ts(iso){ var d = new Date(iso); return d.toLocaleDateString('de-AT', {day:'2-digit', month:'2-digit', year:'numeric'}) + ' ' + d.toLocaleTimeString('de-AT', {hour:'2-digit', minute:'2-digit'}); }
   function euro(c){ return c === null || c === undefined ? '' : (c / 100).toFixed(2).replace('.', ',') + ' €'; }
   function wer(e){ return (e || '').replace(/@.*/, ''); }
+  function fmtIban(i){ return (i || '').replace(/\s+/g, '').replace(/(.{4})/g, '$1 ').trim(); }
   function download(name, text, type){ var a = h('a', {href: URL.createObjectURL(new Blob([text], {type: type})), download: name}); document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500); }
   function csv(rows){ return '﻿' + rows.map(function(r){ return r.map(function(v){ v = v === null || v === undefined ? '' : String(v); if(/^[=+\-@]/.test(v)) v = "'" + v; return /[";\n,]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(';'); }).join('\r\n'); }
   function sw(name, title, sub, checked){
@@ -420,14 +445,24 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
       h('div', {class:'grid2'},
         field('Verkaufte Anteilsscheine ', inp('anteile_verkauft', s.anteile_verkauft, {type:'number', min:0, inputmode:'numeric', placeholder:'leer = nicht anzeigen'}), '(zählt automatisch mit, wenn ihr unter „Anteile“ auf Bezahlt stellt)'),
         field('Anteilsscheine insgesamt', inp('anteile_gesamt', s.anteile_gesamt, {type:'number', min:1, inputmode:'numeric'}))),
+      h('div', {class:'grid2'},
+        field('Nummern vor der Website ', inp('anteile_nr_vorher', s.anteile_nr_vorher, {type:'number', min:0, inputmode:'numeric'}), '(so viele gab es schon, neue Anfragen machen danach weiter, z. B. 6 = ab AS-007)')),
       h('div', null, h('button', {class:'btn', type:'submit', text:'Speichern'})));
-    f3.addEventListener('submit', function(e){ e.preventDefault(); saveSettings({anteile_verkauft: f3.elements.anteile_verkauft.value, anteile_gesamt: f3.elements.anteile_gesamt.value}); });
+    f3.addEventListener('submit', function(e){ e.preventDefault(); saveSettings({anteile_verkauft: f3.elements.anteile_verkauft.value, anteile_gesamt: f3.elements.anteile_gesamt.value, anteile_nr_vorher: f3.elements.anteile_nr_vorher.value}); });
+    var f4 = h('form', null,
+      h('div', {class:'grid3'},
+        field('Empfänger ', inp('zahlung_name', s.zahlung_name, {maxlength:70, placeholder:'Vor- und Nachname', autocomplete:'off'}), '(genau wie bei der Bank)'),
+        field('IBAN', inp('zahlung_iban', fmtIban(s.zahlung_iban), {placeholder:'AT12 3456 …', autocomplete:'off', spellcheck:'false'})),
+        field('BIC ', inp('zahlung_bic', s.zahlung_bic, {placeholder:'leer lassen geht', autocomplete:'off', spellcheck:'false'}), '(optional)')),
+      h('div', null, h('button', {class:'btn', type:'submit', text:'Speichern'})));
+    f4.addEventListener('submit', function(e){ e.preventDefault(); saveSettings({zahlung_name: f4.elements.zahlung_name.value, zahlung_iban: f4.elements.zahlung_iban.value, zahlung_bic: f4.elements.zahlung_bic.value}); });
     var m = modus(s);
     return h('div', {class:'panel'},
       h('div', {class:'head'}, h('div', null, h('h1', {text:'Verkauf'}), h('p', {class:'muted'}, 'Gerade auf der Website: ', h('span', {class:'pill'}, h('i', {style:'background:' + m[1]}), m[0])))),
       h('div', {class:'card'}, h('h2', {text:'Bestellen und Preise'}), h('p', {class:'muted', text:'Bestellen lässt sich erst öffnen, wenn ein Preis eingetragen ist. Preise gelten nur für neue Bestellungen.'}), f1),
       h('div', {class:'card'}, h('h2', {text:'Lager'}), h('p', {class:'muted', text:'Optional. Wenn ihr Stückzahlen eintragt, kann niemand mehr bestellen, als da ist.'}), f2),
-      h('div', {class:'card'}, h('h2', {text:'Anteilsscheine'}), h('p', {class:'muted', text:'Auf der Website steht „noch X von 80 frei“. Normalerweise müsst ihr hier nichts eintragen, nur zum Korrigieren.'}), f3)
+      h('div', {class:'card'}, h('h2', {text:'Anteilsscheine'}), h('p', {class:'muted', text:'Auf der Website steht „noch X von 80 frei“. Normalerweise müsst ihr hier nichts eintragen, nur zum Korrigieren.'}), f3),
+      h('div', {class:'card'}, h('h2', {text:'Zahlungsdaten für den QR-Code'}), h('p', {class:'muted', text:'Kommen in den Zahlungs-QR-Code bei den Anteilsscheinen. Stehen nie auf der öffentlichen Website. Der Empfänger muss genau so heißen wie der Kontoinhaber bei der Bank, sonst warnt die Banking-App beim Überweisen („Name passt nicht zur IBAN“).'}), f4)
     );
   }
 
@@ -488,9 +523,10 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
       h('div', {class:'head'}, h('div', null, h('h1', {text:'Anteilsscheine'}), h('p', {class:'muted', text: verk + ' von ' + ges + ' verkauft, ' + Math.max(0, ges - verk) + ' noch frei. Anfragen kommen auch per Mail an info@.'})),
         h('button', {class:'btn leer', type:'button', text:'Als Tabelle (CSV)', onclick:function(){
           if(!shares) return;
-          download('anteilsscheine-' + D.heute + '.csv', csv([['Nr','Datum','Name','E-Mail','Anzahl','Betrag','Status','Nachricht','Notiz']].concat(shares.map(function(a){ return [a.nr, ts(a.created_at), a.name, a.email, a.anzahl, (a.anzahl * 10) + ' €', a.status, a.nachricht, a.notiz]; }))), 'text/csv;charset=utf-8');
+          download('anteilsscheine-' + D.heute + '.csv', csv([['Nr','Datum','Name','E-Mail','Anzahl','Betrag','Status','Zahlung','Woher','Nachricht','Notiz']].concat(shares.map(function(a){ return [a.nr, ts(a.created_at), a.name, a.email, a.anzahl, (a.anzahl * 10) + ' €', a.status, ZTEXT[a.zahlart || ''], a.quelle === 'manuell' ? 'selbst eingetragen' : 'Website', a.nachricht, a.notiz]; }))), 'text/csv;charset=utf-8');
         }})),
       h('div', {class:'note'}, 'Sobald das Geld da ist, auf „Bezahlt“ stellen. Dann zählt die Website automatisch mit, wie viele noch frei sind.'),
+      neuAnteil(),
       h('div', {class:'loading', text:'Wird geladen …'}));
     api('GET', 'anteile').then(function(r){ shares = r.liste; wrap.replaceChild(shareList(), wrap.lastChild); }).catch(fail);
     return wrap;
@@ -503,27 +539,152 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
     return h('div', {class:'panel'}, chips,
       list.length ? h('div', {class:'list'}, list.map(shareRow)) : h('div', {class:'empty', text: shares.length ? 'Keine Anfragen in diesem Filter.' : 'Noch keine Anfragen. Sie kommen über „Anteilsschein anfragen“ auf der Website.'}));
   }
+  var ZART = [['','Noch offen'],['bar','Bar'],['ueberweisung','Überweisung']];
+  var ZTEXT = {'': 'offen', bar: 'Bar', ueberweisung: 'Überweisung'};
+  function neuAnteil(){
+    var f = h('form', null,
+      h('div', {class:'grid2'},
+        field('Name ', inp('name', '', {maxlength:100, required:true, placeholder:'Vor- und Nachname', autocomplete:'off'}), '(fürs Anteilseigner-Verzeichnis)'),
+        field('E-Mail ', inp('email', '', {type:'email', maxlength:254, placeholder:'optional', autocomplete:'off'}), '(optional, für Einladung und Auszahlung praktisch)')),
+      h('div', {class:'grid3'},
+        field('Anzahl', h('select', {name:'anzahl'}, h('option', {value:'1'}, '1 Anteilsschein (10 €)'), h('option', {value:'2'}, '2 Anteilsscheine (20 €)'))),
+        field('Bezahlt mit', h('select', {name:'zahlart'}, h('option', {value:'bar'}, 'Bar'), h('option', {value:'ueberweisung'}, 'Überweisung'))),
+        field('Nummer ', inp('nr', '', {type:'number', min:1, inputmode:'numeric', placeholder:'leer = nächste freie'}), '(nur für alte, z. B. 3 = AS-003)')),
+      h('div', {hidden:true, 'data-ueb':''}, sw('bezahlt', 'Geld ist schon am Konto', 'Aus: Steht als „Neu“ drin, bis die Überweisung da ist. Den QR-Code dafür gibt es dann in der Liste.', false)),
+      field('Notiz', h('textarea', {name:'notiz', rows:2, maxlength:1000, placeholder:'z. B. „am Stand verkauft, Emil hat kassiert“'})),
+      h('div', null, h('button', {class:'btn', type:'submit', text:'Eintragen'})));
+    var ueb = f.querySelector('[data-ueb]');
+    f.elements.zahlart.addEventListener('change', function(){ ueb.hidden = f.elements.zahlart.value !== 'ueberweisung'; });
+    f.addEventListener('submit', function(e){
+      e.preventDefault();
+      var btn = f.querySelector('button[type=submit]'); btn.disabled = true;
+      var o = {name: f.elements.name.value, email: f.elements.email.value, anzahl: +f.elements.anzahl.value, zahlart: f.elements.zahlart.value, nr: f.elements.nr.value, notiz: f.elements.notiz.value, bezahlt: f.elements.bezahlt.checked};
+      api('POST', 'anteile', o).then(function(r){ toast(r.nr + ' eingetragen' + (r.status === 'bezahlt' ? ' und als bezahlt gezählt.' : ', wartet auf die Überweisung.')); load(); })
+        .catch(function(err){ btn.disabled = false; fail(err); });
+    });
+    return h('details', {class:'order'},
+      h('summary', {style:'grid-template-columns:1fr auto'}, h('b', {text:'Anteilsschein eintragen'}), h('span', {class:'muted small', text:'selbst verkauft, z. B. am Stand oder in der Klasse'})),
+      h('div', {class:'body'}, f));
+  }
   function shareRow(a){
     var sel = h('select', {name:'status', 'aria-label':'Status'}, ASTATUS.map(function(x){ return h('option', {value:x[0], selected: a.status === x[0]}, x[1]); }));
+    var zsel = h('select', {name:'zahlart', 'aria-label':'Bezahlt mit'}, ZART.map(function(x){ return h('option', {value:x[0], selected: (a.zahlart || '') === x[0]}, x[1]); }));
     var notiz = h('textarea', {name:'notiz', rows:2, placeholder:'Interne Notiz, z. B. „bar bei Emil bezahlt, 4.11.“'}); notiz.value = a.notiz || '';
-    var mail = 'mailto:' + encodeURIComponent(a.email) + '?subject=' + encodeURIComponent('Dein Anteilsschein ' + a.nr + ' bei Backpack Hero');
+    var mail = a.email ? 'mailto:' + encodeURIComponent(a.email) + '?subject=' + encodeURIComponent('Dein Anteilsschein ' + a.nr + ' bei Backpack Hero') : null;
+    var lokal = a.quelle === 'manuell';
     return h('details', {class:'order'},
-      h('summary', null, h('span', {class:'nr', text:a.nr}), h('span', {class:'nm'}, h('b', {text:a.name}), h('span', {class:'muted small hide-m', text:' · ' + ts(a.created_at)})), h('span', {class:'num hide-m', text: a.anzahl + ' × 10 €'}), aStatus(a.status)),
+      h('summary', null, h('span', {class:'nr', text:a.nr}), h('span', {class:'nm'}, h('b', {text:a.name}), lokal ? h('span', {class:'tag', text:'selbst eingetragen'}) : null, h('span', {class:'muted small hide-m', text:' · ' + ts(a.created_at)})), h('span', {class:'num hide-m', text: a.anzahl + ' × 10 €'}), aStatus(a.status)),
       h('div', {class:'body'},
         h('dl', null,
-          h('dt', {text:'Angefragt am'}), h('dd', {text: ts(a.created_at)}),
-          h('dt', {text:'E-Mail'}), h('dd', null, h('a', {href:mail, text:a.email})),
+          h('dt', {text: lokal ? 'Eingetragen am' : 'Angefragt am'}), h('dd', {text: ts(a.created_at)}),
+          h('dt', {text:'E-Mail'}), h('dd', null, mail ? h('a', {href:mail, text:a.email}) : h('span', {class:'muted', text:'keine'})),
           h('dt', {text:'Anzahl'}), h('dd', {text: a.anzahl + ' Anteilsschein' + (a.anzahl > 1 ? 'e' : '') + ' = ' + (a.anzahl * 10) + ' €'}),
+          h('dt', {text:'Bezahlt mit'}), h('dd', {text: ZTEXT[a.zahlart || '']}),
           a.nachricht ? h('dt', {text:'Nachricht'}) : null, a.nachricht ? h('dd', {text:a.nachricht}) : null,
           a.updated_by ? h('dt', {text:'Zuletzt geändert'}) : null, a.updated_by ? h('dd', {text: ts(a.updated_at) + ' von ' + wer(a.updated_by)}) : null),
-        h('div', {class:'grid2'}, field('Status', sel), field('Notiz', notiz)),
+        h('div', {class:'grid3'}, field('Status', sel), field('Bezahlt mit', zsel), field('Notiz', notiz)),
         h('div', {class:'row'},
           h('button', {class:'btn klein', type:'button', text:'Speichern', onclick:function(){
-            api('PUT', 'anteile/' + a.id, {status: sel.value, notiz: notiz.value}).then(function(){ toast(a.nr + ' gespeichert.'); load(); }).catch(fail); }}),
-          h('a', {class:'btn klein leer', href:mail, text:'Anschreiben'}),
+            if(sel.value === 'bezahlt' && !zsel.value){ toast('Bitte noch auswählen: bar oder Überweisung.', true); zsel.focus(); return; }
+            api('PUT', 'anteile/' + a.id, {status: sel.value, zahlart: zsel.value, notiz: notiz.value}).then(function(){ toast(a.nr + ' gespeichert.'); load(); }).catch(fail); }}),
+          a.status !== 'abgesagt' ? h('button', {class:'btn klein leer', type:'button', text:'Zahlungs-QR', onclick:function(){ zahlQR(a); }}) : null,
+          mail ? h('a', {class:'btn klein leer', href:mail, text:'Anschreiben'}) : null,
           a.status !== 'bezahlt' ? h('button', {class:'btn klein leer', type:'button', text:'Löschen', onclick:function(){
             if(confirm('Anfrage ' + a.nr + ' von ' + a.name + ' wirklich löschen?')) api('DELETE', 'anteile/' + a.id).then(function(){ toast('Gelöscht.'); load(); }).catch(fail); }}) : null)
       ));
+  }
+
+  /* ---------- Zahlungs-QR (EPC-QR-Code, „Zahlen mit Code“) ---------- */
+  // Aufbau laut EPC069-12: BCD, Version 002, UTF-8, SCT, BIC (optional), Name, IBAN, Betrag, Zweck, Referenz, Text
+  function zweck(a){ return (a.nr + ' Anteilsschein ' + a.name).replace(/\s+/g, ' ').slice(0, 140); }
+  function epc(a){
+    var s = D.s;
+    return ['BCD', '002', '1', 'SCT', (s.zahlung_bic || '').toUpperCase(), s.zahlung_name.slice(0, 70), s.zahlung_iban.replace(/\s+/g, '').toUpperCase(), 'EUR' + (a.anzahl * 10).toFixed(2), '', '', zweck(a)].join('\n');
+  }
+  function qrMatrix(text){ var q = qrcode(0, 'M'); q.addData(text, 'Byte'); q.make(); return q; }
+  function qrSvg(q){
+    var n = q.getModuleCount(), rand = 4, d = '';
+    for(var r = 0; r < n; r++) for(var c = 0; c < n; c++) if(q.isDark(r, c)) d += 'M' + (c + rand) + ' ' + (r + rand) + 'h1v1h-1z';
+    var e = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    e.setAttribute('viewBox', '0 0 ' + (n + 2 * rand) + ' ' + (n + 2 * rand)); e.setAttribute('shape-rendering', 'crispEdges'); e.setAttribute('role', 'img'); e.setAttribute('aria-label', 'Zahlungs-QR-Code');
+    var bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect'); bg.setAttribute('width', '100%'); bg.setAttribute('height', '100%'); bg.setAttribute('fill', '#fff');
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', d); p.setAttribute('fill', '#15171A');
+    e.appendChild(bg); e.appendChild(p); return e;
+  }
+  function betragText(a){ return (a.anzahl * 10) + ',00 €'; }
+  function zahlText(a){
+    var s = D.s;
+    return 'Empfänger: ' + s.zahlung_name + '\nIBAN: ' + fmtIban(s.zahlung_iban) + (s.zahlung_bic ? '\nBIC: ' + s.zahlung_bic : '') + '\nBetrag: ' + betragText(a) + '\nVerwendungszweck: ' + zweck(a);
+  }
+  function mailText(a){
+    var vn = a.name.split(' ')[0];
+    return 'Hallo ' + vn + ',\n\ndanke, dass du bei Backpack Hero einsteigst! Du hast ' + a.anzahl + ' Anteilsschein' + (a.anzahl > 1 ? 'e' : '') + ' angefragt, das macht ' + betragText(a) + '.\n\n' +
+      'Bitte überweis den Betrag an:\n' + zahlText(a) + '\n\n' +
+      'Am einfachsten geht es mit dem QR-Code im Anhang: In deiner Banking-App auf „Scannen“ oder „Zahlen mit Code“ tippen, dann ist alles schon ausgefüllt. Bitte den Verwendungszweck nicht ändern, sonst können wir die Zahlung nicht zuordnen.\n\n' +
+      'Das Konto läuft auf ' + D.s.zahlung_name + ' aus unserem Team, weil eine Junior Company über ein Konto von Team-Mitgliedern läuft.\n\n' +
+      'Sobald das Geld da ist, melden wir uns bei dir.\n\nLiebe Grüße\nBackpack Hero Junior Company\ninfo@backpackhero.at';
+  }
+  function zahlPng(a, q){
+    var W = 1200, H = 1500, c = document.createElement('canvas'); c.width = W; c.height = H;
+    var x = c.getContext('2d');
+    x.fillStyle = '#F3F0E8'; x.fillRect(0, 0, W, H);
+    x.fillStyle = '#fff'; x.beginPath(); if(x.roundRect) x.roundRect(60, 60, W - 120, H - 120, 40); else x.rect(60, 60, W - 120, H - 120); x.fill();
+    [['#C8412F', 0], ['#E2B13C', 1], ['#2F7A4D', 2]].forEach(function(p){ x.fillStyle = p[0]; x.beginPath(); x.arc(130 + p[1] * 26, 152, 9, 0, 7); x.fill(); });
+    x.fillStyle = '#55514A'; x.font = '700 26px Archivo, sans-serif'; x.fillText('BACKPACK HERO JUNIOR COMPANY', 210, 161);
+    x.fillStyle = '#15171A'; x.font = '800 64px Archivo, sans-serif'; x.fillText('Anteilsschein ' + a.nr, 120, 260);
+    x.fillStyle = '#55514A'; x.font = '400 34px Archivo, sans-serif'; x.fillText('Mit der Banking-App scannen, dann ist alles ausgefüllt.', 120, 315);
+    var n = q.getModuleCount() + 8, size = 640, cell = Math.floor(size / n), qs = cell * n, ox = Math.round((W - qs) / 2), oy = 370;
+    x.fillStyle = '#fff'; x.fillRect(ox, oy, qs, qs); x.fillStyle = '#15171A';
+    for(var r = 0; r < n - 8; r++) for(var col = 0; col < n - 8; col++) if(q.isDark(r, col)) x.fillRect(ox + (col + 4) * cell, oy + (r + 4) * cell, cell, cell);
+    var y = oy + qs + 90, s = D.s;
+    var rows = [['Empfänger', s.zahlung_name], ['IBAN', fmtIban(s.zahlung_iban)]].concat(s.zahlung_bic ? [['BIC', s.zahlung_bic]] : []).concat([['Betrag', betragText(a)], ['Zweck', zweck(a)]]);
+    rows.forEach(function(rw){
+      x.fillStyle = '#55514A'; x.font = '400 32px Archivo, sans-serif'; x.fillText(rw[0], 120, y);
+      x.fillStyle = '#15171A'; x.font = '700 34px Archivo, sans-serif';
+      var t = rw[1]; while(x.measureText(t).width > W - 120 - 360 && t.length > 4) t = t.slice(0, -2);
+      x.fillText(t === rw[1] ? t : t + '…', 360, y); y += 58;
+    });
+    x.fillStyle = '#55514A'; x.font = '400 26px Archivo, sans-serif'; x.fillText('Ordnung, die mitgeht.  ·  info@backpackhero.at', 120, H - 110);
+    return c;
+  }
+  function zahlQR(a){
+    var s = D.s;
+    if(!s.zahlung_name || !s.zahlung_iban){ toast('Zuerst unter „Verkauf → Zahlungsdaten“ Empfänger und IBAN eintragen.', true); go('verkauf'); return; }
+    var q;
+    try { q = qrMatrix(epc(a)); } catch(e){ toast('QR-Code konnte nicht erstellt werden.', true); return; }
+    var dots = h('span', {class:'dots'}, h('i', {style:'background:var(--rot)'}), h('i', {style:'background:var(--gelb)'}), h('i', {style:'background:var(--gruen)'}));
+    var sheet = h('div', {class:'zs'},
+      h('div', {class:'k'}, dots, 'Backpack Hero Junior Company'),
+      h('h2', null, 'Anteilsschein ', h('span', {style:'white-space:nowrap', text:a.nr})),
+      h('div', {class:'qr'}, qrSvg(q), h('p', null, 'Mit der Banking-App scannen (z. B. „Scannen“ oder „Zahlen mit Code“). Empfänger, IBAN, Betrag und Verwendungszweck sind dann schon ausgefüllt.')),
+      h('dl', null,
+        h('dt', {text:'Für'}), h('dd', {text: a.name + ', ' + a.anzahl + ' Anteilsschein' + (a.anzahl > 1 ? 'e' : '')}),
+        h('dt', {text:'Empfänger'}), h('dd', {text: s.zahlung_name}),
+        h('dt', {text:'IBAN'}), h('dd', {text: fmtIban(s.zahlung_iban)}),
+        s.zahlung_bic ? h('dt', {text:'BIC'}) : null, s.zahlung_bic ? h('dd', {text: s.zahlung_bic}) : null,
+        h('dt', {text:'Betrag'}), h('dd', {text: betragText(a)}),
+        h('dt', {text:'Verwendungszweck'}), h('dd', {text: zweck(a)})),
+      h('div', {class:'fuss', text:'Ordnung, die mitgeht. · info@backpackhero.at'}));
+    var ov;
+    function zu(){ ov.remove(); document.body.classList.remove('ov-open'); document.removeEventListener('keydown', esc); }
+    function esc(e){ if(e.key === 'Escape') zu(); }
+    var mailHref = a.email ? 'mailto:' + encodeURIComponent(a.email) + '?subject=' + encodeURIComponent('Dein Anteilsschein ' + a.nr + ' bei Backpack Hero: Zahlung') + '&body=' + encodeURIComponent(mailText(a)) : null;
+    ov = h('div', {class:'ov', role:'dialog', 'aria-modal':'true', 'aria-label':'Zahlungs-QR ' + a.nr, onclick:function(e){ if(e.target === ov) zu(); }},
+      h('div', {class:'ov-box'},
+        h('div', {class:'head ov-head'}, h('h2', {text:'Zahlungs-QR'}), h('button', {class:'btn klein leer', type:'button', text:'Schließen', onclick:zu})),
+        sheet,
+        h('div', {class:'row ov-acts'},
+          h('button', {class:'btn klein', type:'button', text:'Als Bild speichern', onclick:function(){
+            (document.fonts && document.fonts.load ? Promise.all([document.fonts.load('800 64px Archivo'), document.fonts.load('400 32px Archivo'), document.fonts.load('700 34px Archivo')]) : Promise.resolve()).then(function(){
+              zahlPng(a, q).toBlob(function(b){ var l = h('a', {href: URL.createObjectURL(b), download: 'Zahlung-' + a.nr + '.png'}); document.body.appendChild(l); l.click(); setTimeout(function(){ URL.revokeObjectURL(l.href); l.remove(); }, 500); }, 'image/png');
+            });
+          }}),
+          h('button', {class:'btn klein leer', type:'button', text:'Drucken', onclick:function(){ window.print(); }}),
+          h('button', {class:'btn klein leer', type:'button', text:'Text kopieren', onclick:function(){
+            (navigator.clipboard ? navigator.clipboard.writeText(zahlText(a)) : Promise.reject()).then(function(){ toast('Zahlungsdaten kopiert.'); }, function(){ toast('Kopieren ging nicht, bitte markieren und kopieren.', true); }); }}),
+          mailHref ? h('a', {class:'btn klein leer', href: mailHref, text:'Mail vorbereiten'}) : null),
+        h('p', {class:'muted small ov-acts', text: a.email ? '„Mail vorbereiten“ öffnet eine fertige Mail. Das Bild musst du selbst anhängen: erst „Als Bild speichern“, dann in die Mail ziehen.' : 'Keine E-Mail-Adresse eingetragen: ausdrucken oder das Bild zum Beispiel per WhatsApp schicken.'})));
+    document.body.appendChild(ov); document.body.classList.add('ov-open'); document.addEventListener('keydown', esc);
   }
 
   /* ---------- Mail-Liste ---------- */

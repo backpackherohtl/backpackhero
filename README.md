@@ -8,6 +8,7 @@ Ordnung, die mitgeht. Website der Backpack Hero Junior Company (Schulprojekt im 
 |---|---|
 | `public/index.html` | Die Website (eine Datei, Bild und Schrift eingebettet) |
 | `public/admin/index.html` | Admin-Bereich unter `/admin` |
+| `public/admin/qrcode.js` | QR-Code-Erzeugung für die Zahlungs-QR-Codes (qrcode-generator von Kazuhiko Arase, MIT-Lizenz) |
 | `public/fonts/` | Schrift Archivo für den Admin |
 | `src/worker.js` | Backend: Datenbank, öffentliche Schnittstelle, Admin-Schnittstelle, Wochenmail |
 | `wrangler.jsonc` | Cloudflare-Konfiguration (Datenbank, Login-Prüfung, Zeitplan) |
@@ -17,7 +18,7 @@ Läuft auf Cloudflare Workers (gratis) unter https://backpackhero.at, Admin unte
 
 ## Daten
 
-Termine, Preise, Texte, Banner, Mail-Liste, Bestellungen und das Änderungsprotokoll liegen in der Cloudflare-Datenbank (D1), nicht in diesem Repository. Sie werden im Admin bearbeitet und sind sofort live. Eine Sicherung gibt es im Admin unter „Übersicht → Sicherung herunterladen“.
+Termine, Preise, Texte, Banner, Mail-Liste, Bestellungen und das Änderungsprotokoll liegen in der Cloudflare-Datenbank (D1), nicht in diesem Repository. Sie werden im Admin bearbeitet und sind sofort live. Eine Sicherung gibt es im Admin unter „Übersicht → Sicherung herunterladen“. Auch die Zahlungsdaten (Empfänger, IBAN) für die Zahlungs-QR-Codes stehen nur in der Datenbank und gehen nie an die öffentliche Website.
 
 ## Sicherheit
 

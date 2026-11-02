@@ -29,6 +29,11 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS ratelimit (k TEXT NOT NULL, ts INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_ratelimit ON ratelimit(k, ts)`,
 ];
+const MIGRATIONS = [
+  // Anteilsscheine: wie bezahlt (bar / ueberweisung) und woher (website / manuell)
+  `ALTER TABLE anteile ADD COLUMN zahlart TEXT DEFAULT ''`,
+  `ALTER TABLE anteile ADD COLUMN quelle TEXT DEFAULT 'website'`,
+];
 
 // Einstellungen mit Standardwerten. Texte (text_*, dat_*, faq_*) sind leer = Text aus der Seite bleibt.
 const DEFAULTS = {
@@ -41,15 +46,22 @@ const DEFAULTS = {
   stueck_anzeigen: '0',
   anteile_gesamt: '80',
   anteile_verkauft: '',
+  // So viele Anteilsscheine wurden schon vor der Website vergeben (Nr. 1 bis 6), die Website macht ab AS-007 weiter
+  anteile_nr_vorher: '6',
+  // Zahlungsdaten für den QR-Code (nur im Admin, nie öffentlich). Absichtlich ohne Standardwert, weil der Code öffentlich auf GitHub liegt
+  zahlung_name: '',
+  zahlung_iban: '',
+  zahlung_bic: '',
   banner_aktiv: '0',
   banner_text: '',
   banner_link: '',
 };
-const SETTING_KEY = /^(bestellen_offen|preis|versand_at|versand_de|ausverkauft|stueck_verfuegbar|stueck_anzeigen|anteile_gesamt|anteile_verkauft|banner_aktiv|banner_text|banner_link|text_[a-z0-9_]{1,40}|dat_[a-z0-9_]{1,40}|faq_[a-z0-9_]{1,40})$/;
+const SETTING_KEY = /^(bestellen_offen|preis|versand_at|versand_de|ausverkauft|stueck_verfuegbar|stueck_anzeigen|anteile_gesamt|anteile_verkauft|anteile_nr_vorher|zahlung_name|zahlung_iban|zahlung_bic|banner_aktiv|banner_text|banner_link|text_[a-z0-9_]{1,40}|dat_[a-z0-9_]{1,40}|faq_[a-z0-9_]{1,40})$/;
 const LABELS = {
   bestellen_offen: 'Bestellen offen', preis: 'Preis', versand_at: 'Versand Österreich', versand_de: 'Versand Deutschland',
   ausverkauft: 'Ausverkauft', stueck_verfuegbar: 'Verfügbare Stück', stueck_anzeigen: 'Stückzahl anzeigen',
-  anteile_gesamt: 'Anteilsscheine insgesamt', anteile_verkauft: 'Verkaufte Anteilsscheine',
+  anteile_gesamt: 'Anteilsscheine insgesamt', anteile_verkauft: 'Verkaufte Anteilsscheine', anteile_nr_vorher: 'Anteilsschein-Nummern vor der Website',
+  zahlung_name: 'Zahlung Empfänger', zahlung_iban: 'Zahlung IBAN', zahlung_bic: 'Zahlung BIC',
   banner_aktiv: 'Banner an', banner_text: 'Banner-Text', banner_link: 'Banner-Link', text_hero: 'Einleitung oben',
   dat_aufbau: 'Datenblatt Aufbau', dat_farben: 'Datenblatt Farben', dat_aussen: 'Datenblatt Außenmaße', dat_fach: 'Datenblatt Fach innen',
   dat_material: 'Datenblatt Material', dat_herkunft: 'Datenblatt Herkunft', dat_gewicht: 'Datenblatt Gewicht',
@@ -59,6 +71,8 @@ const LABELS = {
 const zeigeWert = (k, v) => (/^(bestellen_offen|ausverkauft|stueck_anzeigen|banner_aktiv)$/.test(k) ? (v === '1' ? 'an' : 'aus') : v === '' ? 'leer' : `„${String(v).slice(0, 60)}“`);
 const STATUS = ['neu', 'bezahlt', 'versendet', 'abgeholt', 'storniert'];
 const ANTEIL_STATUS = ['neu', 'bezahlt', 'abgesagt'];
+const ZAHLART = ['', 'bar', 'ueberweisung'];
+const ZAHLART_TEXT = { '': 'offen', bar: 'bar', ueberweisung: 'Überweisung' };
 const ANTEILE_PRO_PERSON = 2;
 const LAENDER = ['Österreich', 'Deutschland'];
 
@@ -66,6 +80,8 @@ let schemaReady = false;
 async function ensureSchema(env) {
   if (schemaReady) return;
   await env.DB.batch(SCHEMA.map((q) => env.DB.prepare(q)));
+  // Spalten, die später dazugekommen sind. Fehler = Spalte gibt es schon
+  for (const q of MIGRATIONS) await env.DB.prepare(q).run().catch(() => {});
   schemaReady = true;
 }
 
@@ -91,6 +107,16 @@ function intOrNull(v, min, max) {
   if (!Number.isInteger(n) || n < min || n > max) return NaN;
   return n;
 }
+// IBAN prüfen (Prüfziffer nach ISO 13616, mod 97)
+function ibanOk(iban) {
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(iban)) return false;
+  const r = (iban.slice(4) + iban.slice(0, 4)).replace(/[A-Z]/g, (c) => String(c.charCodeAt(0) - 55));
+  let rest = 0;
+  for (const ch of r) rest = (rest * 10 + Number(ch)) % 97;
+  return rest === 1;
+}
+// Diese Einstellungen gehen nie an die öffentliche Website
+const PRIVAT = /^(zahlung_|anteile_nr_vorher$)/;
 // "24,90" / "24.90" / "24" -> 2490 Cent, leer -> null
 function cents(v) {
   const s = String(v ?? '').trim().replace(/\s|€/g, '');
@@ -225,6 +251,7 @@ async function publicData(env) {
   ).bind(heuteWien()).all();
   const stock = s.stueck_verfuegbar === '' ? null : Number(s.stueck_verfuegbar);
   const ausverkauft = s.ausverkauft === '1' || (stock !== null && stock <= 0);
+  for (const k of Object.keys(s)) if (PRIVAT.test(k)) delete s[k];
   return {
     ok: true,
     s,
@@ -335,14 +362,17 @@ async function anteil(req, env) {
   }
   if (await rateLimited(env, req, 'anteil', 4)) return fail('Zu viele Anfragen in kurzer Zeit. Probier es in ein paar Minuten nochmal.', 429);
   const ts = now();
-  const ins = await env.DB.prepare("INSERT INTO anteile (created_at, name, email, anzahl, nachricht, status, updated_at) VALUES (?, ?, ?, ?, ?, 'neu', ?)")
+  const ins = await env.DB.prepare("INSERT INTO anteile (created_at, name, email, anzahl, nachricht, status, updated_at, zahlart, quelle) VALUES (?, ?, ?, ?, ?, 'neu', ?, '', 'website')")
     .bind(ts, d.name, d.email, d.anzahl, d.nachricht, ts).run();
   const id = ins.meta.last_row_id;
-  const nr = `AS-${String(id).padStart(3, '0')}`;
-  await env.DB.batch([
-    env.DB.prepare('UPDATE anteile SET nr = ? WHERE id = ?').bind(nr, id),
-    env.DB.prepare('INSERT INTO protokoll (ts, email, aktion, details) VALUES (?, ?, ?, ?)').bind(ts, 'Website', 'Neue Anteilsschein-Anfrage', `${nr}: ${d.anzahl} Stück`),
-  ]);
+  // Fortlaufende Nummer: höchste bisherige Nummer + 1, mindestens nach den Anteilsscheinen von vor der Website.
+  // In einem einzigen Befehl, damit zwei gleichzeitige Anfragen nie dieselbe Nummer bekommen
+  const vorher = intOrNull(s.anteile_nr_vorher, 0, 9999) || 0;
+  const row = await env.DB.prepare(
+    "UPDATE anteile SET nr = 'AS-' || printf('%03d', MAX(?, COALESCE((SELECT MAX(CAST(substr(nr, 4) AS INTEGER)) FROM anteile WHERE nr LIKE 'AS-%'), 0)) + 1) WHERE id = ? RETURNING nr"
+  ).bind(vorher, id).first();
+  const nr = row.nr;
+  await env.DB.prepare('INSERT INTO protokoll (ts, email, aktion, details) VALUES (?, ?, ?, ?)').bind(ts, 'Website', 'Neue Anteilsschein-Anfrage', `${nr}: ${d.anzahl} Stück`).run();
   await sendMail(env, `Anteilsschein-Anfrage ${nr}: ${d.name} (${d.anzahl} Stück)`,
     `Neue Anfrage für Anteilsscheine über die Website.\n\nNummer: ${nr}\nName: ${d.name}\nE-Mail: ${d.email}\nAnzahl: ${d.anzahl} × 10 € = ${d.anzahl * 10} €\n` +
     (d.nachricht ? `Nachricht: ${d.nachricht}\n` : '') +
@@ -393,7 +423,12 @@ async function admin(req, env, path, email) {
     const ts = now(), stmts = [], changes = [];
     for (const [k, v0] of Object.entries(b)) {
       if (!SETTING_KEY.test(k)) return fail(`Unbekanntes Feld: ${k}`);
-      const v = str(v0, 2000);
+      let v = str(v0, 2000);
+      if (k === 'zahlung_iban' || k === 'zahlung_bic') v = v.replace(/\s+/g, '').toUpperCase();
+      if (k === 'zahlung_iban' && v && !ibanOk(v)) return fail('Die IBAN stimmt nicht (Prüfziffer passt nicht). Bitte nochmal genau abschreiben.');
+      if (k === 'zahlung_bic' && v && !/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(v)) return fail('Die BIC hat 8 oder 11 Zeichen, z. B. OBKLAT2L. Oder einfach leer lassen.');
+      if (k === 'zahlung_name' && v.length > 70) return fail('Der Empfängername darf höchstens 70 Zeichen haben.');
+      if (k === 'anteile_nr_vorher' && v && Number.isNaN(intOrNull(v, 0, 9999))) return fail('Bitte die Nummer als ganze Zahl angeben, z. B. 6.');
       if (['preis', 'versand_at', 'versand_de'].includes(k) && v && Number.isNaN(cents(v))) return fail('Preise bitte als Zahl angeben, z. B. 24,90.');
       if (['stueck_verfuegbar', 'anteile_verkauft', 'anteile_gesamt'].includes(k) && v && Number.isNaN(intOrNull(v, 0, 100000))) return fail('Stückzahlen bitte als ganze Zahl angeben.');
       if (k === 'banner_link' && v && !/^(https:\/\/|#|\/)/.test(v)) return fail('Der Banner-Link muss mit https://, # oder / beginnen.');
@@ -488,8 +523,44 @@ async function admin(req, env, path, email) {
 
   if (res === 'anteile') {
     if (m === 'GET') {
-      const { results } = await env.DB.prepare('SELECT * FROM anteile ORDER BY id DESC LIMIT 1000').all();
+      const { results } = await env.DB.prepare("SELECT * FROM anteile ORDER BY CAST(substr(nr, 4) AS INTEGER) DESC, id DESC LIMIT 1000").all();
       return json({ ok: true, liste: results });
+    }
+    // Selbst verkauften Anteilsschein eintragen (z. B. am Stand oder in der Klasse)
+    if (m === 'POST' && !id) {
+      let b;
+      try { b = await readJson(req, 6000); } catch { return fail('Ungültige Anfrage.'); }
+      const d = { name: str(b.name, 100), email: str(b.email, 254).toLowerCase(), anzahl: intOrNull(b.anzahl, 1, ANTEILE_PRO_PERSON), zahlart: str(b.zahlart, 20), notiz: str(b.notiz, 1000), nr: intOrNull(b.nr, 1, 9999), bezahlt: b.bezahlt === true };
+      if (d.name.length < 2) return fail('Bitte den Namen eintragen (Vor- und Nachname, wegen Anteilseigner-Verzeichnis).');
+      if (d.email && !isEmail(d.email)) return fail('Die E-Mail-Adresse stimmt nicht. Leer lassen geht auch.');
+      if (!d.anzahl || Number.isNaN(d.anzahl)) return fail(`Bitte 1 oder ${ANTEILE_PRO_PERSON} Anteilsscheine wählen.`);
+      if (!['bar', 'ueberweisung'].includes(d.zahlart)) return fail('Bitte wählen: bar oder Überweisung.');
+      if (Number.isNaN(d.nr)) return fail('Die Nummer bitte als ganze Zahl, z. B. 3. Oder leer lassen, dann kommt die nächste freie.');
+      const status = d.zahlart === 'bar' || d.bezahlt ? 'bezahlt' : 'neu';
+      const s = await getSettings(env);
+      const verkauft = Number(s.anteile_verkauft) || 0, gesamt = Number(s.anteile_gesamt) || 0;
+      if (status === 'bezahlt' && gesamt && verkauft + d.anzahl > gesamt) return fail(`Damit wären ${verkauft + d.anzahl} von ${gesamt} Anteilsscheinen verkauft. Bitte unter „Verkauf“ die Zahlen prüfen.`, 409);
+      if (d.email) {
+        const schon = await env.DB.prepare("SELECT COALESCE(SUM(anzahl),0) AS n FROM anteile WHERE email = ? AND status != 'abgesagt'").bind(d.email).first();
+        if (schon.n + d.anzahl > ANTEILE_PRO_PERSON) return fail(`Mit dieser E-Mail-Adresse gibt es schon ${schon.n} Anteilsschein${schon.n === 1 ? '' : 'e'}. Pro Person gehen höchstens ${ANTEILE_PRO_PERSON}.`, 409);
+      }
+      if (d.nr) {
+        const nrText = `AS-${String(d.nr).padStart(3, '0')}`;
+        const da = await env.DB.prepare('SELECT name FROM anteile WHERE nr = ?').bind(nrText).first();
+        if (da) return fail(`Die Nummer ${nrText} gibt es schon (${da.name}). Nimm eine andere oder lass das Feld leer.`, 409);
+      }
+      const ts = now();
+      const ins = await env.DB.prepare("INSERT INTO anteile (created_at, name, email, anzahl, nachricht, status, notiz, updated_at, updated_by, zahlart, quelle) VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, ?, 'manuell')")
+        .bind(ts, d.name, d.email, d.anzahl, status, d.notiz, ts, email, d.zahlart).run();
+      const newId = ins.meta.last_row_id;
+      const vorher = intOrNull(s.anteile_nr_vorher, 0, 9999) || 0;
+      const row = d.nr
+        ? await env.DB.prepare('UPDATE anteile SET nr = ? WHERE id = ? RETURNING nr').bind(`AS-${String(d.nr).padStart(3, '0')}`, newId).first()
+        : await env.DB.prepare("UPDATE anteile SET nr = 'AS-' || printf('%03d', MAX(?, COALESCE((SELECT MAX(CAST(substr(nr, 4) AS INTEGER)) FROM anteile WHERE nr LIKE 'AS-%'), 0)) + 1) WHERE id = ? RETURNING nr").bind(vorher, newId).first();
+      const stmts = [env.DB.prepare('INSERT INTO protokoll (ts, email, aktion, details) VALUES (?, ?, ?, ?)').bind(ts, email, `Anteilsschein ${row.nr} eingetragen`, `${d.name}, ${d.anzahl} Stück, ${ZAHLART_TEXT[d.zahlart]}, ${status}`)];
+      if (status === 'bezahlt') stmts.push(env.DB.prepare(`INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('anteile_verkauft', ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`).bind(String(verkauft + d.anzahl), ts, email));
+      await env.DB.batch(stmts);
+      return json({ ok: true, nr: row.nr, status });
     }
     if ((m === 'PUT' || m === 'DELETE') && id) {
       const alt = await env.DB.prepare('SELECT * FROM anteile WHERE id = ?').bind(id).first();
@@ -510,15 +581,17 @@ async function admin(req, env, path, email) {
       const status = b.status === undefined ? alt.status : str(b.status, 20);
       if (!ANTEIL_STATUS.includes(status)) return fail('Unbekannter Status.');
       const notiz = b.notiz === undefined ? alt.notiz : str(b.notiz, 1000);
+      const zahlart = b.zahlart === undefined ? (alt.zahlart || '') : str(b.zahlart, 20);
+      if (!ZAHLART.includes(zahlart)) return fail('Unbekannte Zahlungsart.');
       const ts = now();
-      const stmts = [env.DB.prepare('UPDATE anteile SET status = ?, notiz = ?, updated_at = ?, updated_by = ? WHERE id = ?').bind(status, notiz, ts, email, id)];
+      const stmts = [env.DB.prepare('UPDATE anteile SET status = ?, notiz = ?, zahlart = ?, updated_at = ?, updated_by = ? WHERE id = ?').bind(status, notiz, zahlart, ts, email, id)];
       // Zähler „verkauft“ mitführen: bezahlt zählt, alles andere nicht
       if (status !== alt.status && (status === 'bezahlt' || alt.status === 'bezahlt')) {
         const neu = verkauft + (status === 'bezahlt' ? alt.anzahl : -alt.anzahl);
         if (status === 'bezahlt' && gesamt && neu > gesamt) return fail(`Damit wären ${neu} von ${gesamt} Anteilsscheinen verkauft. Bitte unter „Verkauf“ die Gesamtzahl prüfen.`, 409);
         stmts.push(setVerkauft(neu));
       }
-      const det = [status !== alt.status ? `Status ${alt.status} → ${status}` : '', notiz !== alt.notiz ? 'Notiz geändert' : ''].filter(Boolean).join(', ');
+      const det = [status !== alt.status ? `Status ${alt.status} → ${status}` : '', zahlart !== (alt.zahlart || '') ? `Zahlung ${ZAHLART_TEXT[alt.zahlart || '']} → ${ZAHLART_TEXT[zahlart]}` : '', notiz !== alt.notiz ? 'Notiz geändert' : ''].filter(Boolean).join(', ');
       if (det) stmts.push(env.DB.prepare('INSERT INTO protokoll (ts, email, aktion, details) VALUES (?, ?, ?, ?)').bind(ts, email, `Anteilsschein ${alt.nr}`, det));
       await env.DB.batch(stmts);
       return json({ ok: true });
