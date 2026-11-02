@@ -66,7 +66,7 @@ main{min-width:0}
 form{display:grid;gap:16px}
 label{display:grid;gap:6px;font-size:14px;font-weight:600}
 label .hint{font-weight:400;color:var(--text-2)}
-input[type=text],input[type=email],input[type=date],input[type=time],input[type=number],input[type=url],select,textarea{background:var(--hell);border:1.5px solid var(--linie);border-radius:14px;padding:11px 14px;min-height:46px;width:100%;font-size:16px;font-weight:400}
+input[type=text],input[type=email],input[type=tel],input[type=date],input[type=time],input[type=number],input[type=url],select,textarea{background:var(--hell);border:1.5px solid var(--linie);border-radius:14px;padding:11px 14px;min-height:46px;width:100%;font-size:16px;font-weight:400}
 textarea{min-height:92px;resize:vertical;line-height:1.45}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--dunkel);background:#fff}
 .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
@@ -149,6 +149,14 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
 .note{border-radius:16px;padding:14px 16px;background:#F8EDD1;font-size:15px}
 .note.ja{background:#DCEBE1;display:flex;gap:14px;align-items:flex-start;justify-content:space-between}
 .note.ja b{display:block;margin-bottom:2px}
+.jad{display:grid;gap:6px;margin-top:12px}
+.jad .z{display:grid;grid-template-columns:90px 1fr auto;gap:10px;align-items:center;background:#fff;border:1px solid var(--linie);border-radius:12px;padding:6px 6px 6px 12px;font-size:15px}
+.jad .z span{color:var(--text-2)}.jad .z b{font-weight:600;overflow-wrap:anywhere;margin:0}
+.jad .z .leer{color:#9E988B;font-weight:400}
+.kopie{border:1.5px solid var(--dunkel);background:transparent;border-radius:999px;padding:0 12px;min-height:34px;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap}
+.kopie.ok{background:var(--gruen);border-color:var(--gruen);color:#fff}
+.order .jaauf summary{display:block;padding:6px 0;grid-template-columns:none;grid-template-areas:none}
+@media (max-width:620px){ .jad .z{grid-template-columns:1fr auto} .jad .z span{grid-column:1/-1;font-size:13px} }
 .loading{padding:60px;text-align:center;color:var(--text-2)}
 
 /* Zahlungs-QR */
@@ -445,12 +453,12 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
     f2.addEventListener('submit', function(e){ e.preventDefault(); saveSettings({ausverkauft: f2.elements.ausverkauft.checked ? '1' : '0', stueck_verfuegbar: f2.elements.stueck_verfuegbar.value, stueck_anzeigen: f2.elements.stueck_anzeigen.checked ? '1' : '0'}); });
     var f3 = h('form', null,
       h('div', {class:'grid2'},
-        field('Verkaufte Anteilsscheine ', inp('anteile_verkauft', s.anteile_verkauft, {type:'number', min:0, inputmode:'numeric', placeholder:'leer = nicht anzeigen'}), '(zählt automatisch mit, wenn ihr unter „Anteile“ auf Bezahlt stellt)'),
+        h('div', null, h('span', {class:'muted small', text:'Verkauft'}), h('p', {style:'font-size:22px;font-weight:800;margin-top:4px', text: (parseInt(s.anteile_verkauft, 10) || 0) + ' von ' + (parseInt(s.anteile_gesamt, 10) || 0)}), h('p', {class:'muted small', text:'Zählt nur, was unter „Anteile“ als bezahlt eingetragen ist. Von Hand ändern geht absichtlich nicht.'})),
         field('Anteilsscheine insgesamt', inp('anteile_gesamt', s.anteile_gesamt, {type:'number', min:1, inputmode:'numeric'}))),
       h('div', {class:'grid2'},
         field('Nummern vor der Website ', inp('anteile_nr_vorher', s.anteile_nr_vorher, {type:'number', min:0, inputmode:'numeric'}), '(so viele gab es schon, neue Anfragen machen danach weiter, z. B. 6 = ab AS-007)')),
       h('div', null, h('button', {class:'btn', type:'submit', text:'Speichern'})));
-    f3.addEventListener('submit', function(e){ e.preventDefault(); saveSettings({anteile_verkauft: f3.elements.anteile_verkauft.value, anteile_gesamt: f3.elements.anteile_gesamt.value, anteile_nr_vorher: f3.elements.anteile_nr_vorher.value}); });
+    f3.addEventListener('submit', function(e){ e.preventDefault(); saveSettings({anteile_gesamt: f3.elements.anteile_gesamt.value, anteile_nr_vorher: f3.elements.anteile_nr_vorher.value}); });
     var f4 = h('form', null,
       h('div', {class:'grid3'},
         field('Empfänger ', inp('zahlung_name', s.zahlung_name, {maxlength:70, placeholder:'Vor- und Nachname', autocomplete:'off'}), '(genau wie bei der Bank)'),
@@ -463,7 +471,7 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
       h('div', {class:'head'}, h('div', null, h('h1', {text:'Verkauf'}), h('p', {class:'muted'}, 'Gerade auf der Website: ', h('span', {class:'pill'}, h('i', {style:'background:' + m[1]}), m[0])))),
       h('div', {class:'card'}, h('h2', {text:'Bestellen und Preise'}), h('p', {class:'muted', text:'Bestellen lässt sich erst öffnen, wenn ein Preis eingetragen ist. Preise gelten nur für neue Bestellungen.'}), f1),
       h('div', {class:'card'}, h('h2', {text:'Lager'}), h('p', {class:'muted', text:'Optional. Wenn ihr Stückzahlen eintragt, kann niemand mehr bestellen, als da ist.'}), f2),
-      h('div', {class:'card'}, h('h2', {text:'Anteilsscheine'}), h('p', {class:'muted', text:'Auf der Website steht „noch X von 80 frei“. Normalerweise müsst ihr hier nichts eintragen, nur zum Korrigieren.'}), f3),
+      h('div', {class:'card'}, h('h2', {text:'Anteilsscheine'}), h('p', {class:'muted', text:'Auf der Website steht „noch X von 80 frei“. Das rechnet sich aus den eingetragenen Anteilsscheinen.'}), f3),
       h('div', {class:'card'}, h('h2', {text:'Zahlungsdaten für den QR-Code'}), h('p', {class:'muted', text:'Kommen in den Zahlungs-QR-Code bei den Anteilsscheinen. Stehen nie auf der öffentlichen Website. Der Empfänger muss genau so heißen wie der Kontoinhaber bei der Bank, sonst warnt die Banking-App beim Überweisen („Name passt nicht zur IBAN“).'}), f4)
     );
   }
@@ -522,12 +530,12 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
   function pAnteile(){
     var s = D.s, ges = parseInt(s.anteile_gesamt, 10) || 0, verk = parseInt(s.anteile_verkauft, 10) || 0;
     var wrap = h('div', {class:'panel'},
-      h('div', {class:'head'}, h('div', null, h('h1', {text:'Anteilsscheine'}), h('p', {class:'muted', text: verk + ' von ' + ges + ' verkauft, ' + Math.max(0, ges - verk) + ' noch frei. Anfragen kommen auch per Mail an info@.'})),
+      h('div', {class:'head'}, h('div', null, h('h1', {text:'Anteilsscheine'}), h('p', {class:'muted', text: verk + ' von ' + ges + ' verkauft, ' + Math.max(0, ges - verk) + ' noch frei. Zählt nur, was hier bezahlt eingetragen ist.'})),
         h('button', {class:'btn leer', type:'button', text:'Als Tabelle (CSV)', onclick:function(){
           if(!shares) return;
-          download('anteilsscheine-' + D.heute + '.csv', csv([['Nr','Datum','Name','E-Mail','Telefon','Adresse','Anzahl','Betrag','Status','Zahlung','Woher','Nachricht','Notiz']].concat(shares.map(function(a){ return [a.nr, ts(a.created_at), a.name, a.email, a.telefon, a.adresse, a.anzahl, (a.anzahl * 10) + ' €', a.status, ZTEXT[a.zahlart || ''], a.quelle === 'manuell' ? 'selbst eingetragen' : 'Website', a.nachricht, a.notiz]; }))), 'text/csv;charset=utf-8');
+          download('anteilsscheine-' + D.heute + '.csv', csv([['Nr','Datum','Name','E-Mail','Telefon','Adresse','Anzahl','Betrag','Status','Zahlung','Woher','Nachricht','Notiz']].concat(shares.map(function(a){ return [nrBereich(a.nr, a.anzahl), ts(a.created_at), a.name, a.email, a.telefon, a.adresse, a.anzahl, (a.anzahl * 10) + ' €', a.status, ZTEXT[a.zahlart || ''], a.quelle === 'manuell' ? 'selbst eingetragen' : 'Website', a.nachricht, a.notiz]; }))), 'text/csv;charset=utf-8');
         }})),
-      h('div', {class:'note'}, 'Sobald das Geld da ist, auf „Bezahlt“ stellen. Dann zählt die Website automatisch mit, wie viele noch frei sind.'),
+      h('div', {class:'note'}, 'Jeder verkaufte Anteilsschein muss hier eingetragen sein, sonst zählt er nicht. Wer 2 kauft, bekommt 2 Nummern. Sobald das Geld da ist, auf „Bezahlt“ stellen.'),
       jaHinweis ? jaNote() : null,
       neuAnteil(),
       h('div', {class:'loading', text:'Wird geladen …'}));
@@ -540,17 +548,40 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
     var chips = h('div', {class:'chips'}, F.map(function(x){ return h('button', {class:'chip', type:'button', 'aria-pressed': afilt === x[0] ? 'true' : 'false', onclick:function(){ afilt = x[0]; render(); }}, x[1], h('small', {text: String(x[2])})); }));
     var list = shares.filter(function(a){ return afilt === 'alle' || a.status === afilt; });
     return h('div', {class:'panel'}, chips,
-      list.length ? h('div', {class:'list'}, list.map(shareRow)) : h('div', {class:'empty', text: shares.length ? 'Keine Anfragen in diesem Filter.' : 'Noch keine Anfragen. Sie kommen über „Anteilsschein anfragen“ auf der Website.'}));
+      list.length ? h('div', {class:'list'}, list.map(shareRow)) : h('div', {class:'empty', text: shares.length ? 'Keine Anfragen in diesem Filter.' : 'Noch keine Anteilsscheine. Anfragen von der Website landen hier, selbst verkaufte oben unter „Anteilsschein eintragen“.'}));
   }
   var ZART = [['','Noch offen'],['bar','Bar'],['ueberweisung','Überweisung']];
   var ZTEXT = {'': 'offen', bar: 'Bar', ueberweisung: 'Überweisung'};
+  // Wer 2 kauft, belegt 2 Nummern: AS-007 und AS-008
+  function nrListe(nr, anzahl){ var n = parseInt(String(nr || '').slice(3), 10), r = []; if(!n) return [nr || '']; for(var i = 0; i < (anzahl || 1); i++) r.push('AS-' + ('00' + (n + i)).slice(-3)); return r; }
+  function nrBereich(nr, anzahl){ return nrListe(nr, anzahl).join(' und '); }
+  function nrKurz(nr, anzahl){ var l = nrListe(nr, anzahl); return l.length > 1 ? l[0] + '/' + l[1].slice(3) : l[0]; }
+
+  /* Kopieren in die Zwischenablage, mit Rückfall für ältere Browser */
+  function kopier(text, btn){
+    function ok(){ if(btn){ var t = btn.textContent; btn.textContent = 'Kopiert'; btn.classList.add('ok'); setTimeout(function(){ btn.textContent = t; btn.classList.remove('ok'); }, 1400); } }
+    function alt(){ var ta = h('textarea', {style:'position:fixed;top:0;left:0;opacity:0', readonly:true}); ta.value = text; document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length); var g = false; try { g = document.execCommand('copy'); } catch(e){} ta.remove(); if(g) ok(); else toast('Kopieren ging nicht, bitte markieren und kopieren.', true); }
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, alt); else alt();
+  }
+  // Alles, was die Junior-Datenbank braucht, mit Kopier-Knopf
+  function jaDaten(a){
+    var z = [['Name', a.name], ['E-Mail', a.email], ['Telefon', a.telefon], ['Adresse', a.adresse], ['Betrag', String((a.anzahl || 1) * 10), (a.anzahl || 1) * 10 + ' € (' + (a.anzahl || 1) + ' Anteilsschein' + (a.anzahl > 1 ? 'e' : '') + ')']];
+    return h('div', {class:'jad'}, z.map(function(r){
+      var wert = (r[1] || '').trim();
+      return h('div', {class:'z'}, h('span', {text:r[0]}), h('b', {class: wert ? null : 'leer', text: wert ? (r[2] || wert) : 'nicht eingetragen'}),
+        wert ? h('button', {class:'kopie', type:'button', 'aria-label': r[0] + ' kopieren', text:'Kopieren', onclick:function(e){ kopier(wert, e.currentTarget); }}) : h('span'));
+    }));
+  }
   // Erinnerung nach dem Eintragen: bleibt stehen, bis man sie wegklickt
   var jaHinweis = null;
   function jaNote(){
-    return h('div', {class:'note ja', role:'status'},
-      h('div', null, h('b', {text: 'Nicht vergessen: ' + jaHinweis + ' auch in die Junior-Datenbank eintragen.'}),
-        'Auf ', h('a', {href:'https://company.junior.cc', target:'_blank', rel:'noopener', text:'company.junior.cc'}), ' ins Anteilseigner-Verzeichnis. Nur wer dort steht, bekommt einen gültigen Anteilsschein und zählt für das Zertifikat.'),
-      h('button', {class:'btn klein leer', type:'button', text:'Erledigt', onclick:function(){ jaHinweis = null; render(); }}));
+    var a = jaHinweis;
+    return h('div', {class:'note ja', role:'status', style:'display:block'},
+      h('div', {style:'display:flex;justify-content:space-between;gap:14px;align-items:flex-start'},
+        h('div', null, h('b', {text: 'Nicht vergessen: ' + nrBereich(a.nr, a.anzahl) + ' (' + a.name + ') auch in die Junior-Datenbank eintragen.'}),
+          'Auf ', h('a', {href:'https://company.junior.cc', target:'_blank', rel:'noopener', text:'company.junior.cc'}), ' ins Anteilseigner-Verzeichnis. Nur wer dort steht, bekommt einen gültigen Anteilsschein und zählt für das Zertifikat.'),
+        h('button', {class:'btn klein leer', type:'button', text:'Erledigt', onclick:function(){ jaHinweis = null; render(); }})),
+      jaDaten(a));
   }
   function neuAnteil(){
     var f = h('form', null,
@@ -558,63 +589,75 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
         field('Name ', inp('name', '', {maxlength:100, required:true, placeholder:'Vor- und Nachname', autocomplete:'off'}), '(fürs Anteilseigner-Verzeichnis)'),
         field('E-Mail ', inp('email', '', {type:'email', maxlength:254, placeholder:'optional', autocomplete:'off'}), '(optional, für Einladung und Auszahlung praktisch)')),
       h('div', {class:'grid2'},
-        field('Telefon ', inp('telefon', '', {type:'tel', maxlength:40, placeholder:'optional', autocomplete:'off'}), '(optional, für den Optionsschein)'),
-        field('Adresse ', inp('adresse', '', {maxlength:200, placeholder:'Straße Nr, PLZ Ort', autocomplete:'off'}), '(optional, für den Optionsschein)')),
+        field('Telefon ', inp('telefon', '', {type:'tel', maxlength:40, placeholder:'optional', autocomplete:'off'}), '(optional, für Optionsschein und Junior-Datenbank)'),
+        field('Adresse ', inp('adresse', '', {maxlength:200, placeholder:'Straße Nr, PLZ Ort', autocomplete:'off'}), '(optional, für Optionsschein und Junior-Datenbank)')),
       h('div', {class:'grid3'},
         field('Anzahl', h('select', {name:'anzahl'}, h('option', {value:'1'}, '1 Anteilsschein (10 €)'), h('option', {value:'2'}, '2 Anteilsscheine (20 €)'))),
         field('Bezahlt mit', h('select', {name:'zahlart'}, h('option', {value:'bar'}, 'Bar'), h('option', {value:'ueberweisung'}, 'Überweisung'))),
-        field('Nummer ', inp('nr', '', {type:'number', min:1, inputmode:'numeric', placeholder:'leer = nächste freie'}), '(nur für alte, z. B. 3 = AS-003)')),
-      sw('gezaehlt', 'Alter Anteilsschein, steht schon im Zähler', 'An: wird eingetragen, aber nicht nochmal zu „verkauft“ dazugezählt. Für die, die ihr vor der Website verkauft und schon mitgezählt habt.', false),
-      h('div', {hidden:true, 'data-ueb':''}, sw('bezahlt', 'Geld ist schon am Konto', 'Aus: Steht als „Neu“ drin, bis die Überweisung da ist. Den QR-Code dafür gibt es dann in der Liste.', false)),
+        field('Nummer ', inp('nr', '', {type:'number', min:1, inputmode:'numeric', placeholder:'leer = nächste freie'}), '(nur für die alten, z. B. 3 = AS-003)')),
+      h('div', {hidden:true, 'data-ueb':''}, sw('bezahlt', 'Geld ist schon am Konto', 'Aus: Steht als „Neu“ drin und zählt noch nicht, bis die Überweisung da ist. Den QR-Code dafür gibt es dann in der Liste.', false)),
       field('Notiz', h('textarea', {name:'notiz', rows:2, maxlength:1000, placeholder:'z. B. „am Stand verkauft, Emil hat kassiert“'})),
       h('div', null, h('button', {class:'btn', type:'submit', text:'Eintragen'})));
     var ueb = f.querySelector('[data-ueb]');
     f.elements.zahlart.addEventListener('change', function(){ ueb.hidden = f.elements.zahlart.value !== 'ueberweisung'; });
-    // Nummer innerhalb der alten (z. B. 1 bis 6): Schalter automatisch an
-    f.elements.nr.addEventListener('input', function(){ var n = parseInt(f.elements.nr.value, 10), v = parseInt(D.s.anteile_nr_vorher, 10) || 0; f.elements.gezaehlt.checked = !!(n && n <= v); });
     f.addEventListener('submit', function(e){
       e.preventDefault();
       var btn = f.querySelector('button[type=submit]'); btn.disabled = true;
-      var o = {name: f.elements.name.value, email: f.elements.email.value, anzahl: +f.elements.anzahl.value, zahlart: f.elements.zahlart.value, nr: f.elements.nr.value, notiz: f.elements.notiz.value, bezahlt: f.elements.bezahlt.checked, telefon: f.elements.telefon.value, adresse: f.elements.adresse.value, gezaehlt: f.elements.gezaehlt.checked};
-      api('POST', 'anteile', o).then(function(r){ jaHinweis = r.nr + ' (' + o.name.trim() + ')'; toast(r.nr + ' eingetragen' + (r.status === 'bezahlt' ? (o.gezaehlt ? ', Zähler bleibt gleich (war schon drin).' : ' und als bezahlt gezählt.') : ', wartet auf die Überweisung.')); load(); window.scrollTo(0, 0); })
-        .catch(function(err){ btn.disabled = false; fail(err); });
+      var o = {name: f.elements.name.value.trim(), email: f.elements.email.value.trim(), anzahl: +f.elements.anzahl.value, zahlart: f.elements.zahlart.value, nr: f.elements.nr.value, notiz: f.elements.notiz.value, bezahlt: f.elements.bezahlt.checked, telefon: f.elements.telefon.value.trim(), adresse: f.elements.adresse.value.trim()};
+      api('POST', 'anteile', o).then(function(r){
+        jaHinweis = {nr: r.nr, name: o.name, email: o.email, telefon: o.telefon, adresse: o.adresse, anzahl: o.anzahl};
+        toast(nrBereich(r.nr, o.anzahl) + ' eingetragen' + (r.status === 'bezahlt' ? ' und gezählt.' : ', zählt, sobald die Überweisung da ist.'));
+        load(); window.scrollTo(0, 0);
+      }).catch(function(err){ btn.disabled = false; fail(err); });
     });
     return h('details', {class:'order'},
-      h('summary', {style:'grid-template-columns:1fr auto'}, h('b', {text:'Anteilsschein eintragen'}), h('span', {class:'muted small', text:'selbst verkauft, z. B. am Stand oder in der Klasse'})),
+      h('summary', {style:'grid-template-columns:1fr auto'}, h('b', {text:'Anteilsschein eintragen'}), h('span', {class:'muted small hide-m', text:'selbst verkauft, am Stand, in der Klasse, oder die alten'})),
       h('div', {class:'body'}, f));
   }
   function shareRow(a){
     var sel = h('select', {name:'status', 'aria-label':'Status'}, ASTATUS.map(function(x){ return h('option', {value:x[0], selected: a.status === x[0]}, x[1]); }));
     var zsel = h('select', {name:'zahlart', 'aria-label':'Bezahlt mit'}, ZART.map(function(x){ return h('option', {value:x[0], selected: (a.zahlart || '') === x[0]}, x[1]); }));
+    var anz = h('select', {name:'anzahl', 'aria-label':'Anzahl'}, h('option', {value:'1', selected: a.anzahl === 1}, '1 Anteilsschein (10 €)'), h('option', {value:'2', selected: a.anzahl === 2}, '2 Anteilsscheine (20 €)'));
+    var nm = inp('name', a.name, {maxlength:100, autocomplete:'off'});
+    var em = inp('email', a.email, {type:'email', maxlength:254, autocomplete:'off', placeholder:'keine'});
+    var tel = inp('telefon', a.telefon, {type:'tel', maxlength:40, autocomplete:'off', placeholder:'für den Optionsschein'});
+    var adr = inp('adresse', a.adresse, {maxlength:200, autocomplete:'off', placeholder:'Straße Nr, PLZ Ort'});
     var notiz = h('textarea', {name:'notiz', rows:2, placeholder:'Interne Notiz, z. B. „bar bei Emil bezahlt, 4.11.“'}); notiz.value = a.notiz || '';
-    var tel = inp('telefon', a.telefon, {type:'tel', maxlength:40, placeholder:'für den Optionsschein'});
-    var adr = inp('adresse', a.adresse, {maxlength:200, placeholder:'Straße Nr, PLZ Ort'});
-    var mail = a.email ? 'mailto:' + encodeURIComponent(a.email) + '?subject=' + encodeURIComponent('Dein Anteilsschein ' + a.nr + ' bei Backpack Hero') : null;
+    var mail = a.email ? 'mailto:' + encodeURIComponent(a.email) + '?subject=' + encodeURIComponent('Dein Anteilsschein ' + nrBereich(a.nr, a.anzahl) + ' bei Backpack Hero') : null;
     var lokal = a.quelle === 'manuell';
+    // Aktuelle Eingaben (auch ungespeicherte) für QR, Optionsschein und Junior-Daten
+    function jetzt(){ return {id: a.id, nr: a.nr, name: nm.value.trim(), email: em.value.trim(), telefon: tel.value.trim(), adresse: adr.value.trim(), anzahl: +anz.value, zahlart: zsel.value, status: sel.value}; }
+    var jaBox = h('div');
+    function jaNeu(){ jaBox.innerHTML = ''; jaBox.appendChild(jaDaten(jetzt())); }
+    jaNeu(); [nm, em, tel, adr].forEach(function(x){ x.addEventListener('input', jaNeu); }); anz.addEventListener('change', jaNeu);
     return h('details', {class:'order'},
-      h('summary', null, h('span', {class:'nr', text:a.nr}), h('span', {class:'nm'}, h('b', {text:a.name}), lokal ? h('span', {class:'tag', text:'selbst eingetragen'}) : null, h('span', {class:'muted small hide-m', text:' · ' + ts(a.created_at)})), h('span', {class:'num hide-m', text: a.anzahl + ' × 10 €'}), aStatus(a.status)),
+      h('summary', null, h('span', {class:'nr', text: nrKurz(a.nr, a.anzahl)}), h('span', {class:'nm'}, h('b', {text:a.name}), lokal ? h('span', {class:'tag', text:'selbst eingetragen'}) : null, h('span', {class:'muted small hide-m', text:' · ' + ts(a.created_at)})), h('span', {class:'num hide-m', text: a.anzahl + ' × 10 €'}), aStatus(a.status)),
       h('div', {class:'body'},
         h('dl', null,
+          h('dt', {text: a.anzahl > 1 ? 'Nummern' : 'Nummer'}), h('dd', {text: nrBereich(a.nr, a.anzahl)}),
           h('dt', {text: lokal ? 'Eingetragen am' : 'Angefragt am'}), h('dd', {text: ts(a.created_at)}),
-          h('dt', {text:'E-Mail'}), h('dd', null, mail ? h('a', {href:mail, text:a.email}) : h('span', {class:'muted', text:'keine'})),
-          h('dt', {text:'Anzahl'}), h('dd', {text: a.anzahl + ' Anteilsschein' + (a.anzahl > 1 ? 'e' : '') + ' = ' + (a.anzahl * 10) + ' €'}),
-          h('dt', {text:'Bezahlt mit'}), h('dd', {text: ZTEXT[a.zahlart || '']}),
           a.nachricht ? h('dt', {text:'Nachricht'}) : null, a.nachricht ? h('dd', {text:a.nachricht}) : null,
           a.updated_by ? h('dt', {text:'Zuletzt geändert'}) : null, a.updated_by ? h('dd', {text: ts(a.updated_at) + ' von ' + wer(a.updated_by)}) : null),
-        h('div', {class:'grid3'}, field('Status', sel), field('Bezahlt mit', zsel), field('Notiz', notiz)),
+        h('div', {class:'grid2'}, field('Name', nm), field('E-Mail', em)),
         h('div', {class:'grid2'}, field('Telefon', tel), field('Adresse', adr)),
+        h('div', {class:'grid3'}, field('Anzahl', anz), field('Status', sel), field('Bezahlt mit', zsel)),
+        field('Notiz', notiz),
         h('div', {class:'row'},
           h('button', {class:'btn klein', type:'button', text:'Speichern', onclick:function(){
-            if(sel.value === 'bezahlt' && !zsel.value){ toast('Bitte noch auswählen: bar oder Überweisung.', true); zsel.focus(); return; }
-            api('PUT', 'anteile/' + a.id, {status: sel.value, zahlart: zsel.value, notiz: notiz.value, telefon: tel.value, adresse: adr.value}).then(function(){ if(sel.value === 'bezahlt' && a.status !== 'bezahlt'){ jaHinweis = a.nr + ' (' + a.name + ')'; window.scrollTo(0, 0); } toast(a.nr + ' gespeichert.'); load(); }).catch(fail); }}),
-          a.status !== 'abgesagt' ? h('button', {class:'btn klein leer', type:'button', text:'Zahlungs-QR', onclick:function(){ zahlQR(a); }}) : null,
+            var j = jetzt();
+            if(j.status === 'bezahlt' && !j.zahlart){ toast('Bitte noch auswählen: bar oder Überweisung.', true); zsel.focus(); return; }
+            if(j.anzahl !== a.anzahl && !confirm('Anzahl auf ' + j.anzahl + ' ändern? Dann ' + (j.anzahl > a.anzahl ? 'bekommt ' + a.name + ' die Nummern ' + nrBereich(a.nr, j.anzahl) : 'wird ' + nrListe(a.nr, 2)[1] + ' wieder frei') + '.')) return;
+            api('PUT', 'anteile/' + a.id, {name: j.name, email: j.email, telefon: j.telefon, adresse: j.adresse, anzahl: j.anzahl, status: j.status, zahlart: j.zahlart, notiz: notiz.value}).then(function(){
+              if(j.status === 'bezahlt' && a.status !== 'bezahlt'){ jaHinweis = j; window.scrollTo(0, 0); }
+              toast(nrBereich(a.nr, j.anzahl) + ' gespeichert.'); load(); }).catch(fail); }}),
+          a.status !== 'abgesagt' ? h('button', {class:'btn klein leer', type:'button', text:'Zahlungs-QR', onclick:function(){ zahlQR(jetzt()); }}) : null,
           a.status !== 'abgesagt' ? h('button', {class:'btn klein leer', type:'button', text:'Optionsschein (PDF)', onclick:function(e){
-            // Ungespeicherte Eingaben (Telefon, Adresse) gleich mitnehmen
             var b = e.currentTarget; b.disabled = true;
-            optionsschein({nr: a.nr, name: a.name, email: a.email, anzahl: a.anzahl, telefon: tel.value, adresse: adr.value, zahlart: zsel.value}).catch(function(err){ toast('PDF ging nicht: ' + (err && err.message || err), true); }).then(function(){ b.disabled = false; }); }}) : null,
+            optionsschein(jetzt()).catch(function(err){ toast('PDF ging nicht: ' + (err && err.message || err), true); }).then(function(){ b.disabled = false; }); }}) : null,
           mail ? h('a', {class:'btn klein leer', href:mail, text:'Anschreiben'}) : null,
           a.status !== 'bezahlt' ? h('button', {class:'btn klein leer', type:'button', text:'Löschen', onclick:function(){
-            if(confirm('Anfrage ' + a.nr + ' von ' + a.name + ' wirklich löschen?')) api('DELETE', 'anteile/' + a.id).then(function(){ toast('Gelöscht.'); load(); }).catch(fail); }}) : null)
+            if(confirm(nrBereich(a.nr, a.anzahl) + ' von ' + a.name + ' wirklich löschen?')) api('DELETE', 'anteile/' + a.id).then(function(){ toast('Gelöscht.'); load(); }).catch(fail); }}) : null),
+        h('details', {class:'jaauf'}, h('summary', {class:'muted small', style:'cursor:pointer', text:'Für die Junior-Datenbank (zum Kopieren)'}), jaBox)
       ));
   }
 
@@ -665,8 +708,8 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
           // Bei Barzahlung bestätigt die Junior Company den Erhalt gleich auf dem Schein
           if(a.zahlart === 'bar') text('Betrag dankend erhalten', 59, 412, 12, 300, bold);
           // Unsere Nummer klein oben links, damit Schein und Liste zusammenpassen
-          pg.drawText(sauber(reg, 'Nr. ' + a.nr), {x:59, y:H - 118, size:9, font:reg, color:L.rgb(0.33, 0.32, 0.29)});
-          doc.setTitle('Optionsschein ' + a.nr + ' ' + a.name);
+          pg.drawText(sauber(reg, 'Nr. ' + nrBereich(a.nr, a.anzahl)), {x:59, y:H - 118, size:9, font:reg, color:L.rgb(0.33, 0.32, 0.29)});
+          doc.setTitle('Optionsschein ' + nrKurz(a.nr, a.anzahl) + ' ' + a.name);
           return doc.save();
         });
       });
@@ -675,13 +718,13 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
       var url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
       var l = h('a', {href:url, download:datei}); document.body.appendChild(l); l.click();
       setTimeout(function(){ URL.revokeObjectURL(url); l.remove(); }, 2000);
-      toast('Optionsschein ' + a.nr + ' heruntergeladen.' + (a.telefon && a.adresse ? '' : ' Fehlendes einfach mit der Hand ausfüllen.'));
+      toast('Optionsschein ' + nrKurz(a.nr, a.anzahl) + ' heruntergeladen.' + (a.telefon && a.adresse ? '' : ' Fehlendes einfach mit der Hand ausfüllen.'));
     });
   }
 
   /* ---------- Zahlungs-QR (EPC-QR-Code, „Zahlen mit Code“) ---------- */
   // Aufbau laut EPC069-12: BCD, Version 002, UTF-8, SCT, BIC (optional), Name, IBAN, Betrag, Zweck, Referenz, Text
-  function zweck(a){ return ('Backpack Hero ' + a.nr + ' Anteilsschein ' + a.name).replace(/\s+/g, ' ').slice(0, 140); }
+  function zweck(a){ return ('Backpack Hero ' + nrKurz(a.nr, a.anzahl) + ' Anteilsschein ' + a.name).replace(/\s+/g, ' ').slice(0, 140); }
   function epc(a){
     var s = D.s;
     return ['BCD', '002', '1', 'SCT', (s.zahlung_bic || '').toUpperCase(), s.zahlung_name.slice(0, 70), s.zahlung_iban.replace(/\s+/g, '').toUpperCase(), 'EUR' + (a.anzahl * 10).toFixed(2), '', '', zweck(a)].join('\n');
@@ -716,7 +759,7 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
     x.fillStyle = '#fff'; x.beginPath(); if(x.roundRect) x.roundRect(60, 60, W - 120, H - 120, 40); else x.rect(60, 60, W - 120, H - 120); x.fill();
     [['#C8412F', 0], ['#E2B13C', 1], ['#2F7A4D', 2]].forEach(function(p){ x.fillStyle = p[0]; x.beginPath(); x.arc(130 + p[1] * 26, 152, 9, 0, 7); x.fill(); });
     x.fillStyle = '#55514A'; x.font = '700 26px Archivo, sans-serif'; x.fillText('BACKPACK HERO JUNIOR COMPANY', 210, 161);
-    x.fillStyle = '#15171A'; x.font = '800 64px Archivo, sans-serif'; x.fillText('Anteilsschein ' + a.nr, 120, 260);
+    x.fillStyle = '#15171A'; x.font = '800 64px Archivo, sans-serif'; x.fillText((a.anzahl > 1 ? 'Anteilsscheine ' : 'Anteilsschein ') + nrKurz(a.nr, a.anzahl), 120, 260);
     x.fillStyle = '#55514A'; x.font = '400 34px Archivo, sans-serif'; x.fillText('Mit der Banking-App scannen, dann ist alles ausgefüllt.', 120, 315);
     var n = q.getModuleCount() + 8, size = 640, cell = Math.floor(size / n), qs = cell * n, ox = Math.round((W - qs) / 2), oy = 370;
     x.fillStyle = '#fff'; x.fillRect(ox, oy, qs, qs); x.fillStyle = '#15171A';
@@ -740,7 +783,7 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
     var dots = h('span', {class:'dots'}, h('i', {style:'background:var(--rot)'}), h('i', {style:'background:var(--gelb)'}), h('i', {style:'background:var(--gruen)'}));
     var sheet = h('div', {class:'zs'},
       h('div', {class:'k'}, dots, 'Backpack Hero Junior Company'),
-      h('h2', null, 'Anteilsschein ', h('span', {style:'white-space:nowrap', text:a.nr})),
+      h('h2', null, a.anzahl > 1 ? 'Anteilsscheine ' : 'Anteilsschein ', h('span', {style:'white-space:nowrap', text: nrKurz(a.nr, a.anzahl)})),
       h('div', {class:'qr'}, qrSvg(q), h('p', null, 'Mit der Banking-App scannen (z. B. „Scannen“ oder „Zahlen mit Code“). Empfänger, IBAN, Betrag und Verwendungszweck sind dann schon ausgefüllt.')),
       h('dl', null,
         h('dt', {text:'Für'}), h('dd', {text: a.name + ', ' + a.anzahl + ' Anteilsschein' + (a.anzahl > 1 ? 'e' : '')}),
@@ -753,7 +796,7 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
     var ov;
     function zu(){ ov.remove(); document.body.classList.remove('ov-open'); document.removeEventListener('keydown', esc); }
     function esc(e){ if(e.key === 'Escape') zu(); }
-    var mailHref = a.email ? 'mailto:' + encodeURIComponent(a.email) + '?subject=' + encodeURIComponent('Dein Anteilsschein ' + a.nr + ' bei Backpack Hero: Zahlung') + '&body=' + encodeURIComponent(mailText(a)) : null;
+    var mailHref = a.email ? 'mailto:' + encodeURIComponent(a.email) + '?subject=' + encodeURIComponent('Dein Anteilsschein ' + nrBereich(a.nr, a.anzahl) + ' bei Backpack Hero: Zahlung') + '&body=' + encodeURIComponent(mailText(a)) : null;
     ov = h('div', {class:'ov', role:'dialog', 'aria-modal':'true', 'aria-label':'Zahlungs-QR ' + a.nr, onclick:function(e){ if(e.target === ov) zu(); }},
       h('div', {class:'ov-box'},
         h('div', {class:'head ov-head'}, h('h2', {text:'Zahlungs-QR'}), h('button', {class:'btn klein leer', type:'button', text:'Schließen', onclick:zu})),

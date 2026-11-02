@@ -59,7 +59,7 @@ const DEFAULTS = {
   banner_text: '',
   banner_link: '',
 };
-const SETTING_KEY = /^(bestellen_offen|preis|versand_at|versand_de|ausverkauft|stueck_verfuegbar|stueck_anzeigen|anteile_gesamt|anteile_verkauft|anteile_nr_vorher|zahlung_name|zahlung_iban|zahlung_bic|banner_aktiv|banner_text|banner_link|text_[a-z0-9_]{1,40}|dat_[a-z0-9_]{1,40}|faq_[a-z0-9_]{1,40})$/;
+const SETTING_KEY = /^(bestellen_offen|preis|versand_at|versand_de|ausverkauft|stueck_verfuegbar|stueck_anzeigen|anteile_gesamt|anteile_nr_vorher|zahlung_name|zahlung_iban|zahlung_bic|banner_aktiv|banner_text|banner_link|text_[a-z0-9_]{1,40}|dat_[a-z0-9_]{1,40}|faq_[a-z0-9_]{1,40})$/;
 const LABELS = {
   bestellen_offen: 'Bestellen offen', preis: 'Preis', versand_at: 'Versand Österreich', versand_de: 'Versand Deutschland',
   ausverkauft: 'Ausverkauft', stueck_verfuegbar: 'Verfügbare Stück', stueck_anzeigen: 'Stückzahl anzeigen',
@@ -118,6 +118,23 @@ function ibanOk(iban) {
   for (const ch of r) rest = (rest * 10 + Number(ch)) % 97;
   return rest === 1;
 }
+// Anteilsschein-Nummern: wer 2 kauft, belegt 2 Nummern (z. B. AS-007 und AS-008).
+// In der Datenbank steht die erste Nummer, die Anzahl sagt, wie viele dazugehören.
+const NR_START = "CAST(substr(nr, 4) AS INTEGER)";
+const NR_ENDE = `(${NR_START} + COALESCE(anzahl, 1) - 1)`;
+const nrText = (n) => `AS-${String(n).padStart(3, '0')}`;
+function nrBereich(nr, anzahl) {
+  const n = parseInt(String(nr || '').slice(3), 10);
+  if (!n || !(anzahl > 1)) return nr || '';
+  return Array.from({ length: anzahl }, (_, i) => nrText(n + i)).join(' und ');
+}
+// Nächste freie Nummer nach allen vergebenen, mindestens nach den alten von vor der Website
+const NR_NAECHSTE = `'AS-' || printf('%03d', MAX(?, COALESCE((SELECT MAX(${NR_ENDE}) FROM anteile WHERE nr LIKE 'AS-%'), 0)) + 1)`;
+// Gibt den Eintrag zurück, der eine der Nummern start bis start+anzahl-1 schon belegt
+function nrBelegt(env, start, anzahl, ohneId) {
+  return env.DB.prepare(`SELECT nr, name, anzahl FROM anteile WHERE nr LIKE 'AS-%' AND id != ? AND ${NR_START} <= ? AND ${NR_ENDE} >= ?`)
+    .bind(ohneId || 0, start + anzahl - 1, start).first();
+}
 // Diese Einstellungen gehen nie an die öffentliche Website
 const PRIVAT = /^(zahlung_|anteile_nr_vorher$)/;
 // "24,90" / "24.90" / "24" -> 2490 Cent, leer -> null
@@ -139,9 +156,14 @@ async function readJson(req, maxBytes = 20000) {
 }
 
 async function getSettings(env) {
-  const { results } = await env.DB.prepare('SELECT key, value FROM settings').all();
+  const [{ results }, verk] = await Promise.all([
+    env.DB.prepare('SELECT key, value FROM settings').all(),
+    env.DB.prepare("SELECT COALESCE(SUM(anzahl), 0) AS n FROM anteile WHERE status = 'bezahlt'").first(),
+  ]);
   const s = { ...DEFAULTS };
   for (const r of results) s[r.key] = r.value;
+  // Verkaufte Anteilsscheine kann man nicht von Hand setzen: es zählt nur, was bezahlt eingetragen ist
+  s.anteile_verkauft = String(verk.n);
   return s;
 }
 
@@ -371,13 +393,11 @@ async function anteil(req, env) {
   // Fortlaufende Nummer: höchste bisherige Nummer + 1, mindestens nach den Anteilsscheinen von vor der Website.
   // In einem einzigen Befehl, damit zwei gleichzeitige Anfragen nie dieselbe Nummer bekommen
   const vorher = intOrNull(s.anteile_nr_vorher, 0, 9999) || 0;
-  const row = await env.DB.prepare(
-    "UPDATE anteile SET nr = 'AS-' || printf('%03d', MAX(?, COALESCE((SELECT MAX(CAST(substr(nr, 4) AS INTEGER)) FROM anteile WHERE nr LIKE 'AS-%'), 0)) + 1) WHERE id = ? RETURNING nr"
-  ).bind(vorher, id).first();
+  const row = await env.DB.prepare(`UPDATE anteile SET nr = ${NR_NAECHSTE} WHERE id = ? RETURNING nr`).bind(vorher, id).first();
   const nr = row.nr;
   await env.DB.prepare('INSERT INTO protokoll (ts, email, aktion, details) VALUES (?, ?, ?, ?)').bind(ts, 'Website', 'Neue Anteilsschein-Anfrage', `${nr}: ${d.anzahl} Stück`).run();
   await sendMail(env, `Anteilsschein-Anfrage ${nr}: ${d.name} (${d.anzahl} Stück)`,
-    `Neue Anfrage für Anteilsscheine über die Website.\n\nNummer: ${nr}\nName: ${d.name}\nE-Mail: ${d.email}\nAnzahl: ${d.anzahl} × 10 € = ${d.anzahl * 10} €\n` +
+    `Neue Anfrage für Anteilsscheine über die Website.\n\nNummer: ${nrBereich(nr, d.anzahl)}\nName: ${d.name}\nE-Mail: ${d.email}\nAnzahl: ${d.anzahl} × 10 € = ${d.anzahl * 10} €\n` +
     (d.nachricht ? `Nachricht: ${d.nachricht}\n` : '') +
     `\nAuf „Antworten“ klicken schreibt direkt an ${d.email}.\nSobald bezahlt ist, im Admin unter „Anteile“ auf „Bezahlt“ stellen, dann zählt die Website mit.\nIm Admin: ${new URL(req.url).origin}/admin/#anteile`,
     false, d.email);
@@ -433,7 +453,7 @@ async function admin(req, env, path, email) {
       if (k === 'zahlung_name' && v.length > 70) return fail('Der Empfängername darf höchstens 70 Zeichen haben.');
       if (k === 'anteile_nr_vorher' && v && Number.isNaN(intOrNull(v, 0, 9999))) return fail('Bitte die Nummer als ganze Zahl angeben, z. B. 6.');
       if (['preis', 'versand_at', 'versand_de'].includes(k) && v && Number.isNaN(cents(v))) return fail('Preise bitte als Zahl angeben, z. B. 24,90.');
-      if (['stueck_verfuegbar', 'anteile_verkauft', 'anteile_gesamt'].includes(k) && v && Number.isNaN(intOrNull(v, 0, 100000))) return fail('Stückzahlen bitte als ganze Zahl angeben.');
+      if (['stueck_verfuegbar', 'anteile_gesamt'].includes(k) && v && Number.isNaN(intOrNull(v, 0, 100000))) return fail('Stückzahlen bitte als ganze Zahl angeben.');
       if (k === 'banner_link' && v && !/^(https:\/\/|#|\/)/.test(v)) return fail('Der Banner-Link muss mit https://, # oder / beginnen.');
       if ((alt[k] ?? '') === v) continue;
       stmts.push(env.DB.prepare('INSERT INTO settings (key, value, updated_at, updated_by) VALUES (?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by').bind(k, v, ts, email));
@@ -526,81 +546,100 @@ async function admin(req, env, path, email) {
 
   if (res === 'anteile') {
     if (m === 'GET') {
-      const { results } = await env.DB.prepare("SELECT * FROM anteile ORDER BY CAST(substr(nr, 4) AS INTEGER) DESC, id DESC LIMIT 1000").all();
+      const { results } = await env.DB.prepare(`SELECT * FROM anteile ORDER BY ${NR_START} DESC, id DESC LIMIT 1000`).all();
       return json({ ok: true, liste: results });
     }
-    // Selbst verkauften Anteilsschein eintragen (z. B. am Stand oder in der Klasse)
+    const pruefe = (b, alt) => {
+      const d = {
+        name: b.name === undefined ? alt.name : str(b.name, 100),
+        email: b.email === undefined ? (alt.email || '') : str(b.email, 254).toLowerCase(),
+        anzahl: b.anzahl === undefined ? alt.anzahl : intOrNull(b.anzahl, 1, ANTEILE_PRO_PERSON),
+        telefon: b.telefon === undefined ? (alt.telefon || '') : str(b.telefon, 40),
+        adresse: b.adresse === undefined ? (alt.adresse || '') : str(b.adresse, 200),
+        notiz: b.notiz === undefined ? (alt.notiz || '') : str(b.notiz, 1000),
+      };
+      if (d.name.length < 2) return [null, 'Bitte den Namen eintragen (Vor- und Nachname, wegen Anteilseigner-Verzeichnis).'];
+      if (d.email && !isEmail(d.email)) return [null, 'Die E-Mail-Adresse stimmt nicht. Leer lassen geht auch.'];
+      if (!d.anzahl || Number.isNaN(d.anzahl)) return [null, `Bitte 1 oder ${ANTEILE_PRO_PERSON} Anteilsscheine wählen.`];
+      return [d, null];
+    };
+    const proPerson = async (d, ohneId) => {
+      if (!d.email) return null;
+      const schon = await env.DB.prepare("SELECT COALESCE(SUM(anzahl),0) AS n FROM anteile WHERE email = ? AND status != 'abgesagt' AND id != ?").bind(d.email, ohneId || 0).first();
+      return schon.n + d.anzahl > ANTEILE_PRO_PERSON ? `Mit dieser E-Mail-Adresse gibt es schon ${schon.n} Anteilsschein${schon.n === 1 ? '' : 'e'}. Pro Person gehen höchstens ${ANTEILE_PRO_PERSON}.` : null;
+    };
+    const zuViele = (n, gesamt) => (gesamt && n > gesamt ? `Damit wären ${n} von ${gesamt} Anteilsscheinen verkauft. Mehr gibt es nicht.` : null);
+
+    // Selbst verkauften Anteilsschein eintragen (z. B. am Stand, in der Klasse, oder die alten von vor der Website)
     if (m === 'POST' && !id) {
       let b;
       try { b = await readJson(req, 6000); } catch { return fail('Ungültige Anfrage.'); }
-      const d = { name: str(b.name, 100), email: str(b.email, 254).toLowerCase(), anzahl: intOrNull(b.anzahl, 1, ANTEILE_PRO_PERSON), zahlart: str(b.zahlart, 20), notiz: str(b.notiz, 1000), nr: intOrNull(b.nr, 1, 9999), bezahlt: b.bezahlt === true, telefon: str(b.telefon, 40), adresse: str(b.adresse, 200), gezaehlt: b.gezaehlt === true };
-      if (d.name.length < 2) return fail('Bitte den Namen eintragen (Vor- und Nachname, wegen Anteilseigner-Verzeichnis).');
-      if (d.email && !isEmail(d.email)) return fail('Die E-Mail-Adresse stimmt nicht. Leer lassen geht auch.');
-      if (!d.anzahl || Number.isNaN(d.anzahl)) return fail(`Bitte 1 oder ${ANTEILE_PRO_PERSON} Anteilsscheine wählen.`);
-      if (!['bar', 'ueberweisung'].includes(d.zahlart)) return fail('Bitte wählen: bar oder Überweisung.');
-      if (Number.isNaN(d.nr)) return fail('Die Nummer bitte als ganze Zahl, z. B. 3. Oder leer lassen, dann kommt die nächste freie.');
-      const status = d.zahlart === 'bar' || d.bezahlt ? 'bezahlt' : 'neu';
+      const [d, err] = pruefe(b, {});
+      if (err) return fail(err);
+      const zahlart = str(b.zahlart, 20), nrWunsch = intOrNull(b.nr, 1, 9999);
+      if (!['bar', 'ueberweisung'].includes(zahlart)) return fail('Bitte wählen: bar oder Überweisung.');
+      if (Number.isNaN(nrWunsch)) return fail('Die Nummer bitte als ganze Zahl, z. B. 3. Oder leer lassen, dann kommt die nächste freie.');
+      const status = zahlart === 'bar' || b.bezahlt === true ? 'bezahlt' : 'neu';
       const s = await getSettings(env);
       const verkauft = Number(s.anteile_verkauft) || 0, gesamt = Number(s.anteile_gesamt) || 0;
-      // Alte Anteilsscheine, die schon im Zähler „verkauft“ stehen, nicht nochmal zählen
-      const zaehlen = status === 'bezahlt' && !d.gezaehlt;
-      if (zaehlen && gesamt && verkauft + d.anzahl > gesamt) return fail(`Damit wären ${verkauft + d.anzahl} von ${gesamt} Anteilsscheinen verkauft. Bitte unter „Verkauf“ die Zahlen prüfen.`, 409);
-      if (d.email) {
-        const schon = await env.DB.prepare("SELECT COALESCE(SUM(anzahl),0) AS n FROM anteile WHERE email = ? AND status != 'abgesagt'").bind(d.email).first();
-        if (schon.n + d.anzahl > ANTEILE_PRO_PERSON) return fail(`Mit dieser E-Mail-Adresse gibt es schon ${schon.n} Anteilsschein${schon.n === 1 ? '' : 'e'}. Pro Person gehen höchstens ${ANTEILE_PRO_PERSON}.`, 409);
-      }
-      if (d.nr) {
-        const nrText = `AS-${String(d.nr).padStart(3, '0')}`;
-        const da = await env.DB.prepare('SELECT name FROM anteile WHERE nr = ?').bind(nrText).first();
-        if (da) return fail(`Die Nummer ${nrText} gibt es schon (${da.name}). Nimm eine andere oder lass das Feld leer.`, 409);
+      if (status === 'bezahlt') { const z = zuViele(verkauft + d.anzahl, gesamt); if (z) return fail(z, 409); }
+      const pp = await proPerson(d); if (pp) return fail(pp, 409);
+      if (nrWunsch) {
+        const da = await nrBelegt(env, nrWunsch, d.anzahl);
+        if (da) return fail(`${d.anzahl > 1 ? `Die Nummern ${nrBereich(nrText(nrWunsch), d.anzahl)} sind` : `Die Nummer ${nrText(nrWunsch)} ist`} nicht frei, ${nrBereich(da.nr, da.anzahl)} ${da.anzahl > 1 ? 'gehören' : 'gehört'} schon ${da.name}. Nimm eine andere oder lass das Feld leer.`, 409);
       }
       const ts = now();
       const ins = await env.DB.prepare("INSERT INTO anteile (created_at, name, email, anzahl, nachricht, status, notiz, updated_at, updated_by, zahlart, quelle, telefon, adresse) VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, ?, 'manuell', ?, ?)")
-        .bind(ts, d.name, d.email, d.anzahl, status, d.notiz, ts, email, d.zahlart, d.telefon, d.adresse).run();
+        .bind(ts, d.name, d.email, d.anzahl, status, d.notiz, ts, email, zahlart, d.telefon, d.adresse).run();
       const newId = ins.meta.last_row_id;
       const vorher = intOrNull(s.anteile_nr_vorher, 0, 9999) || 0;
-      const row = d.nr
-        ? await env.DB.prepare('UPDATE anteile SET nr = ? WHERE id = ? RETURNING nr').bind(`AS-${String(d.nr).padStart(3, '0')}`, newId).first()
-        : await env.DB.prepare("UPDATE anteile SET nr = 'AS-' || printf('%03d', MAX(?, COALESCE((SELECT MAX(CAST(substr(nr, 4) AS INTEGER)) FROM anteile WHERE nr LIKE 'AS-%'), 0)) + 1) WHERE id = ? RETURNING nr").bind(vorher, newId).first();
-      const stmts = [env.DB.prepare('INSERT INTO protokoll (ts, email, aktion, details) VALUES (?, ?, ?, ?)').bind(ts, email, `Anteilsschein ${row.nr} eingetragen`, `${d.name}, ${d.anzahl} Stück, ${ZAHLART_TEXT[d.zahlart]}, ${status}${d.gezaehlt ? ', war schon im Zähler' : ''}`)];
-      if (zaehlen) stmts.push(env.DB.prepare(`INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('anteile_verkauft', ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`).bind(String(verkauft + d.anzahl), ts, email));
-      await env.DB.batch(stmts);
-      return json({ ok: true, nr: row.nr, status });
+      const row = nrWunsch
+        ? await env.DB.prepare('UPDATE anteile SET nr = ? WHERE id = ? RETURNING nr').bind(nrText(nrWunsch), newId).first()
+        : await env.DB.prepare(`UPDATE anteile SET nr = ${NR_NAECHSTE} WHERE id = ? RETURNING nr`).bind(vorher, newId).first();
+      await log(env, email, `Anteilsschein ${nrBereich(row.nr, d.anzahl)} eingetragen`, `${d.name}, ${d.anzahl} Stück, ${ZAHLART_TEXT[zahlart]}, ${status}`);
+      return json({ ok: true, id: newId, nr: row.nr, status });
     }
     if ((m === 'PUT' || m === 'DELETE') && id) {
       const alt = await env.DB.prepare('SELECT * FROM anteile WHERE id = ?').bind(id).first();
-      if (!alt) return fail('Anfrage nicht gefunden.', 404);
-      const s = await getSettings(env);
-      const verkauft = Number(s.anteile_verkauft) || 0, gesamt = Number(s.anteile_gesamt) || 0;
-      const setVerkauft = (n) => env.DB.prepare(`INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('anteile_verkauft', ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`).bind(String(Math.max(0, n)), now(), email);
+      if (!alt) return fail('Eintrag nicht gefunden.', 404);
       if (m === 'DELETE') {
         if (alt.status === 'bezahlt') return fail('Bezahlte Anteilsscheine bitte nicht löschen, ihr braucht sie für die Auszahlung. Erst auf „Abgesagt“ stellen, falls das Geld zurückgegeben wurde.', 409);
-        await env.DB.batch([
-          env.DB.prepare('DELETE FROM anteile WHERE id = ?').bind(id),
-          env.DB.prepare('INSERT INTO protokoll (ts, email, aktion, details) VALUES (?, ?, ?, ?)').bind(now(), email, `Anteilsschein-Anfrage ${alt.nr} gelöscht`, ''),
-        ]);
+        await env.DB.prepare('DELETE FROM anteile WHERE id = ?').bind(id).run();
+        await log(env, email, `Anteilsschein ${nrBereich(alt.nr, alt.anzahl)} gelöscht`, alt.name || '');
         return json({ ok: true });
       }
       let b;
-      try { b = await readJson(req, 4000); } catch { return fail('Ungültige Anfrage.'); }
+      try { b = await readJson(req, 6000); } catch { return fail('Ungültige Anfrage.'); }
+      const [d, err] = pruefe(b, alt);
+      if (err) return fail(err);
       const status = b.status === undefined ? alt.status : str(b.status, 20);
       if (!ANTEIL_STATUS.includes(status)) return fail('Unbekannter Status.');
-      const notiz = b.notiz === undefined ? alt.notiz : str(b.notiz, 1000);
       const zahlart = b.zahlart === undefined ? (alt.zahlart || '') : str(b.zahlart, 20);
       if (!ZAHLART.includes(zahlart)) return fail('Unbekannte Zahlungsart.');
-      const telefon = b.telefon === undefined ? (alt.telefon || '') : str(b.telefon, 40);
-      const adresse = b.adresse === undefined ? (alt.adresse || '') : str(b.adresse, 200);
-      const ts = now();
-      const stmts = [env.DB.prepare('UPDATE anteile SET status = ?, notiz = ?, zahlart = ?, telefon = ?, adresse = ?, updated_at = ?, updated_by = ? WHERE id = ?').bind(status, notiz, zahlart, telefon, adresse, ts, email, id)];
-      // Zähler „verkauft“ mitführen: bezahlt zählt, alles andere nicht
-      if (status !== alt.status && (status === 'bezahlt' || alt.status === 'bezahlt')) {
-        const neu = verkauft + (status === 'bezahlt' ? alt.anzahl : -alt.anzahl);
-        if (status === 'bezahlt' && gesamt && neu > gesamt) return fail(`Damit wären ${neu} von ${gesamt} Anteilsscheinen verkauft. Bitte unter „Verkauf“ die Gesamtzahl prüfen.`, 409);
-        stmts.push(setVerkauft(neu));
+      if (status === 'bezahlt' && !zahlart) return fail('Bitte noch auswählen: bar oder Überweisung.');
+      const s = await getSettings(env);
+      const verkauft = Number(s.anteile_verkauft) || 0, gesamt = Number(s.anteile_gesamt) || 0;
+      const vorherGezaehlt = alt.status === 'bezahlt' ? alt.anzahl : 0, jetztGezaehlt = status === 'bezahlt' ? d.anzahl : 0;
+      if (jetztGezaehlt > vorherGezaehlt) { const z = zuViele(verkauft - vorherGezaehlt + jetztGezaehlt, gesamt); if (z) return fail(z, 409); }
+      if (status !== 'abgesagt' && (d.email !== (alt.email || '') || d.anzahl !== alt.anzahl || alt.status === 'abgesagt')) { const pp = await proPerson(d, id); if (pp) return fail(pp, 409); }
+      if (d.anzahl > alt.anzahl) {
+        const start = parseInt(String(alt.nr).slice(3), 10);
+        const da = start ? await nrBelegt(env, start, d.anzahl, id) : null;
+        if (da) return fail(`Für 2 Scheine braucht es auch die Nummer ${nrText(start + 1)}, die gehört schon ${da.name}. Lösch den Eintrag und trag ihn mit 2 Stück neu ein, dann bekommt er zwei freie Nummern.`, 409);
       }
-      const det = [status !== alt.status ? `Status ${alt.status} → ${status}` : '', zahlart !== (alt.zahlart || '') ? `Zahlung ${ZAHLART_TEXT[alt.zahlart || '']} → ${ZAHLART_TEXT[zahlart]}` : '', notiz !== alt.notiz ? 'Notiz geändert' : '', telefon !== (alt.telefon || '') || adresse !== (alt.adresse || '') ? 'Kontaktdaten geändert' : ''].filter(Boolean).join(', ');
-      if (det) stmts.push(env.DB.prepare('INSERT INTO protokoll (ts, email, aktion, details) VALUES (?, ?, ?, ?)').bind(ts, email, `Anteilsschein ${alt.nr}`, det));
-      await env.DB.batch(stmts);
+      const ts = now();
+      await env.DB.prepare('UPDATE anteile SET name = ?, email = ?, anzahl = ?, telefon = ?, adresse = ?, status = ?, notiz = ?, zahlart = ?, updated_at = ?, updated_by = ? WHERE id = ?')
+        .bind(d.name, d.email, d.anzahl, d.telefon, d.adresse, status, d.notiz, zahlart, ts, email, id).run();
+      const det = [
+        status !== alt.status ? `Status ${alt.status} → ${status}` : '',
+        zahlart !== (alt.zahlart || '') ? `Zahlung ${ZAHLART_TEXT[alt.zahlart || '']} → ${ZAHLART_TEXT[zahlart]}` : '',
+        d.anzahl !== alt.anzahl ? `Anzahl ${alt.anzahl} → ${d.anzahl}` : '',
+        d.name !== alt.name ? `Name „${alt.name}“ → „${d.name}“` : '',
+        d.email !== (alt.email || '') ? 'E-Mail geändert' : '',
+        d.telefon !== (alt.telefon || '') || d.adresse !== (alt.adresse || '') ? 'Telefon/Adresse geändert' : '',
+        d.notiz !== (alt.notiz || '') ? 'Notiz geändert' : '',
+      ].filter(Boolean).join(', ');
+      if (det) await log(env, email, `Anteilsschein ${nrBereich(alt.nr, d.anzahl)}`, det);
       return json({ ok: true });
     }
   }
