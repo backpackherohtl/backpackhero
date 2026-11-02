@@ -147,6 +147,8 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.err{background:var(--rot)}
 .note{border-radius:16px;padding:14px 16px;background:#F8EDD1;font-size:15px}
+.note.ja{background:#DCEBE1;display:flex;gap:14px;align-items:flex-start;justify-content:space-between}
+.note.ja b{display:block;margin-bottom:2px}
 .loading{padding:60px;text-align:center;color:var(--text-2)}
 
 /* Zahlungs-QR */
@@ -526,6 +528,7 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
           download('anteilsscheine-' + D.heute + '.csv', csv([['Nr','Datum','Name','E-Mail','Telefon','Adresse','Anzahl','Betrag','Status','Zahlung','Woher','Nachricht','Notiz']].concat(shares.map(function(a){ return [a.nr, ts(a.created_at), a.name, a.email, a.telefon, a.adresse, a.anzahl, (a.anzahl * 10) + ' €', a.status, ZTEXT[a.zahlart || ''], a.quelle === 'manuell' ? 'selbst eingetragen' : 'Website', a.nachricht, a.notiz]; }))), 'text/csv;charset=utf-8');
         }})),
       h('div', {class:'note'}, 'Sobald das Geld da ist, auf „Bezahlt“ stellen. Dann zählt die Website automatisch mit, wie viele noch frei sind.'),
+      jaHinweis ? jaNote() : null,
       neuAnteil(),
       h('div', {class:'loading', text:'Wird geladen …'}));
     api('GET', 'anteile').then(function(r){ shares = r.liste; wrap.replaceChild(shareList(), wrap.lastChild); }).catch(fail);
@@ -541,6 +544,14 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
   }
   var ZART = [['','Noch offen'],['bar','Bar'],['ueberweisung','Überweisung']];
   var ZTEXT = {'': 'offen', bar: 'Bar', ueberweisung: 'Überweisung'};
+  // Erinnerung nach dem Eintragen: bleibt stehen, bis man sie wegklickt
+  var jaHinweis = null;
+  function jaNote(){
+    return h('div', {class:'note ja', role:'status'},
+      h('div', null, h('b', {text: 'Nicht vergessen: ' + jaHinweis + ' auch in die Junior-Datenbank eintragen.'}),
+        'Auf ', h('a', {href:'https://company.junior.cc', target:'_blank', rel:'noopener', text:'company.junior.cc'}), ' ins Anteilseigner-Verzeichnis. Nur wer dort steht, bekommt einen gültigen Anteilsschein und zählt für das Zertifikat.'),
+      h('button', {class:'btn klein leer', type:'button', text:'Erledigt', onclick:function(){ jaHinweis = null; render(); }}));
+  }
   function neuAnteil(){
     var f = h('form', null,
       h('div', {class:'grid2'},
@@ -562,7 +573,7 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
       e.preventDefault();
       var btn = f.querySelector('button[type=submit]'); btn.disabled = true;
       var o = {name: f.elements.name.value, email: f.elements.email.value, anzahl: +f.elements.anzahl.value, zahlart: f.elements.zahlart.value, nr: f.elements.nr.value, notiz: f.elements.notiz.value, bezahlt: f.elements.bezahlt.checked, telefon: f.elements.telefon.value, adresse: f.elements.adresse.value};
-      api('POST', 'anteile', o).then(function(r){ toast(r.nr + ' eingetragen' + (r.status === 'bezahlt' ? ' und als bezahlt gezählt.' : ', wartet auf die Überweisung.')); load(); })
+      api('POST', 'anteile', o).then(function(r){ jaHinweis = r.nr + ' (' + o.name.trim() + ')'; toast(r.nr + ' eingetragen' + (r.status === 'bezahlt' ? ' und als bezahlt gezählt.' : ', wartet auf die Überweisung.')); load(); window.scrollTo(0, 0); })
         .catch(function(err){ btn.disabled = false; fail(err); });
     });
     return h('details', {class:'order'},
@@ -592,12 +603,12 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
         h('div', {class:'row'},
           h('button', {class:'btn klein', type:'button', text:'Speichern', onclick:function(){
             if(sel.value === 'bezahlt' && !zsel.value){ toast('Bitte noch auswählen: bar oder Überweisung.', true); zsel.focus(); return; }
-            api('PUT', 'anteile/' + a.id, {status: sel.value, zahlart: zsel.value, notiz: notiz.value, telefon: tel.value, adresse: adr.value}).then(function(){ toast(a.nr + ' gespeichert.'); load(); }).catch(fail); }}),
+            api('PUT', 'anteile/' + a.id, {status: sel.value, zahlart: zsel.value, notiz: notiz.value, telefon: tel.value, adresse: adr.value}).then(function(){ if(sel.value === 'bezahlt' && a.status !== 'bezahlt'){ jaHinweis = a.nr + ' (' + a.name + ')'; window.scrollTo(0, 0); } toast(a.nr + ' gespeichert.'); load(); }).catch(fail); }}),
           a.status !== 'abgesagt' ? h('button', {class:'btn klein leer', type:'button', text:'Zahlungs-QR', onclick:function(){ zahlQR(a); }}) : null,
           a.status !== 'abgesagt' ? h('button', {class:'btn klein leer', type:'button', text:'Optionsschein (PDF)', onclick:function(e){
             // Ungespeicherte Eingaben (Telefon, Adresse) gleich mitnehmen
             var b = e.currentTarget; b.disabled = true;
-            optionsschein({nr: a.nr, name: a.name, email: a.email, anzahl: a.anzahl, telefon: tel.value, adresse: adr.value}).catch(function(err){ toast('PDF ging nicht: ' + (err && err.message || err), true); }).then(function(){ b.disabled = false; }); }}) : null,
+            optionsschein({nr: a.nr, name: a.name, email: a.email, anzahl: a.anzahl, telefon: tel.value, adresse: adr.value, zahlart: zsel.value}).catch(function(err){ toast('PDF ging nicht: ' + (err && err.message || err), true); }).then(function(){ b.disabled = false; }); }}) : null,
           mail ? h('a', {class:'btn klein leer', href:mail, text:'Anschreiben'}) : null,
           a.status !== 'bezahlt' ? h('button', {class:'btn klein leer', type:'button', text:'Löschen', onclick:function(){
             if(confirm('Anfrage ' + a.nr + ' von ' + a.name + ' wirklich löschen?')) api('DELETE', 'anteile/' + a.id).then(function(){ toast('Gelöscht.'); load(); }).catch(fail); }}) : null)
@@ -648,6 +659,8 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
           // Ort und Datum für die Junior Company (unterschreibt ihr beim Übergeben)
           var d = new Date(), heute = ('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + d.getFullYear();
           mitte(ORT + ', ' + heute, 131, 439, 11);
+          // Bei Barzahlung bestätigt die Junior Company den Erhalt gleich auf dem Schein
+          if(a.zahlart === 'bar') text('Betrag dankend erhalten', 59, 412, 12, 300, bold);
           // Unsere Nummer klein oben links, damit Schein und Liste zusammenpassen
           pg.drawText(sauber(reg, 'Nr. ' + a.nr), {x:59, y:H - 118, size:9, font:reg, color:L.rgb(0.33, 0.32, 0.29)});
           doc.setTitle('Optionsschein ' + a.nr + ' ' + a.name);
@@ -665,7 +678,7 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
 
   /* ---------- Zahlungs-QR (EPC-QR-Code, „Zahlen mit Code“) ---------- */
   // Aufbau laut EPC069-12: BCD, Version 002, UTF-8, SCT, BIC (optional), Name, IBAN, Betrag, Zweck, Referenz, Text
-  function zweck(a){ return (a.nr + ' Anteilsschein ' + a.name).replace(/\s+/g, ' ').slice(0, 140); }
+  function zweck(a){ return ('Backpack Hero ' + a.nr + ' Anteilsschein ' + a.name).replace(/\s+/g, ' ').slice(0, 140); }
   function epc(a){
     var s = D.s;
     return ['BCD', '002', '1', 'SCT', (s.zahlung_bic || '').toUpperCase(), s.zahlung_name.slice(0, 70), s.zahlung_iban.replace(/\s+/g, '').toUpperCase(), 'EUR' + (a.anzahl * 10).toFixed(2), '', '', zweck(a)].join('\n');
