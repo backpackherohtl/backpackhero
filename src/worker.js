@@ -47,6 +47,8 @@ const DEFAULTS = {
   ausverkauft: '0',
   stueck_verfuegbar: '',
   stueck_anzeigen: '0',
+  // „Noch X von 80 frei“ auf der Website zeigen (aus = nur „80 Anteilsscheine insgesamt“)
+  anteile_anzeigen: '0',
   anteile_gesamt: '80',
   anteile_verkauft: '',
   // So viele Anteilsscheine wurden schon vor der Website vergeben (Nr. 1 bis 6), die Website macht ab AS-007 weiter
@@ -59,10 +61,10 @@ const DEFAULTS = {
   banner_text: '',
   banner_link: '',
 };
-const SETTING_KEY = /^(bestellen_offen|preis|versand_at|versand_de|ausverkauft|stueck_verfuegbar|stueck_anzeigen|anteile_gesamt|anteile_nr_vorher|zahlung_name|zahlung_iban|zahlung_bic|banner_aktiv|banner_text|banner_link|text_[a-z0-9_]{1,40}|dat_[a-z0-9_]{1,40}|faq_[a-z0-9_]{1,40})$/;
+const SETTING_KEY = /^(bestellen_offen|preis|versand_at|versand_de|ausverkauft|stueck_verfuegbar|stueck_anzeigen|anteile_gesamt|anteile_anzeigen|anteile_nr_vorher|zahlung_name|zahlung_iban|zahlung_bic|banner_aktiv|banner_text|banner_link|text_[a-z0-9_]{1,40}|dat_[a-z0-9_]{1,40}|faq_[a-z0-9_]{1,40})$/;
 const LABELS = {
   bestellen_offen: 'Bestellen offen', preis: 'Preis', versand_at: 'Versand Österreich', versand_de: 'Versand Deutschland',
-  ausverkauft: 'Ausverkauft', stueck_verfuegbar: 'Verfügbare Stück', stueck_anzeigen: 'Stückzahl anzeigen',
+  ausverkauft: 'Ausverkauft', stueck_verfuegbar: 'Verfügbare Stück', stueck_anzeigen: 'Stückzahl anzeigen', anteile_anzeigen: 'Freie Anteilsscheine anzeigen',
   anteile_gesamt: 'Anteilsscheine insgesamt', anteile_verkauft: 'Verkaufte Anteilsscheine', anteile_nr_vorher: 'Anteilsschein-Nummern vor der Website',
   zahlung_name: 'Zahlung Empfänger', zahlung_iban: 'Zahlung IBAN', zahlung_bic: 'Zahlung BIC',
   banner_aktiv: 'Banner an', banner_text: 'Banner-Text', banner_link: 'Banner-Link', text_hero: 'Einleitung oben',
@@ -71,7 +73,7 @@ const LABELS = {
   faq_rucksack: 'FAQ Rucksack', faq_material: 'FAQ Material', faq_preis: 'FAQ Preis', faq_bekommen: 'FAQ Wie bekomme ich',
   faq_bezahlen: 'FAQ Bezahlen', faq_klasse: 'FAQ Klasse', faq_junior: 'FAQ Junior Company', faq_organizer: 'FAQ Was ist ein Rucksack-Organizer',
 };
-const zeigeWert = (k, v) => (/^(bestellen_offen|ausverkauft|stueck_anzeigen|banner_aktiv)$/.test(k) ? (v === '1' ? 'an' : 'aus') : v === '' ? 'leer' : `„${String(v).slice(0, 60)}“`);
+const zeigeWert = (k, v) => (/^(bestellen_offen|ausverkauft|stueck_anzeigen|anteile_anzeigen|banner_aktiv)$/.test(k) ? (v === '1' ? 'an' : 'aus') : v === '' ? 'leer' : `„${String(v).slice(0, 60)}“`);
 const STATUS = ['neu', 'bezahlt', 'versendet', 'abgeholt', 'storniert'];
 const ANTEIL_STATUS = ['neu', 'bezahlt', 'abgesagt'];
 const ZAHLART = ['', 'bar', 'ueberweisung'];
@@ -277,6 +279,8 @@ async function publicData(env) {
   const stock = s.stueck_verfuegbar === '' ? null : Number(s.stueck_verfuegbar);
   const ausverkauft = s.ausverkauft === '1' || (stock !== null && stock <= 0);
   for (const k of Object.keys(s)) if (PRIVAT.test(k)) delete s[k];
+  // Wie viele Anteilsscheine noch frei sind, nur zeigen, wenn im Admin eingeschaltet
+  if (s.anteile_anzeigen !== '1') delete s.anteile_verkauft;
   return {
     ok: true,
     s,

@@ -456,9 +456,10 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
         h('div', null, h('span', {class:'muted small', text:'Verkauft'}), h('p', {style:'font-size:22px;font-weight:800;margin-top:4px', text: (parseInt(s.anteile_verkauft, 10) || 0) + ' von ' + (parseInt(s.anteile_gesamt, 10) || 0)}), h('p', {class:'muted small', text:'Zählt nur, was unter „Anteile“ als bezahlt eingetragen ist. Von Hand ändern geht absichtlich nicht.'})),
         field('Anteilsscheine insgesamt', inp('anteile_gesamt', s.anteile_gesamt, {type:'number', min:1, inputmode:'numeric'}))),
       h('div', {class:'grid2'},
-        field('Nummern vor der Website ', inp('anteile_nr_vorher', s.anteile_nr_vorher, {type:'number', min:0, inputmode:'numeric'}), '(so viele gab es schon, neue Anfragen machen danach weiter, z. B. 6 = ab AS-007)')),
+        field('Nummern vor der Website ', inp('anteile_nr_vorher', s.anteile_nr_vorher, {type:'number', min:0, inputmode:'numeric'}), '(so viele gab es schon, neue Anfragen machen danach weiter, z. B. 6 = ab AS-007)'),
+        h('div', {style:'align-self:end'}, sw('anteile_anzeigen', 'Freie Anteilsscheine auf der Website zeigen', 'An: „noch 74 von 80 frei“. Aus: nur „80 Anteilsscheine insgesamt“.', s.anteile_anzeigen === '1'))),
       h('div', null, h('button', {class:'btn', type:'submit', text:'Speichern'})));
-    f3.addEventListener('submit', function(e){ e.preventDefault(); saveSettings({anteile_gesamt: f3.elements.anteile_gesamt.value, anteile_nr_vorher: f3.elements.anteile_nr_vorher.value}); });
+    f3.addEventListener('submit', function(e){ e.preventDefault(); saveSettings({anteile_gesamt: f3.elements.anteile_gesamt.value, anteile_nr_vorher: f3.elements.anteile_nr_vorher.value, anteile_anzeigen: f3.elements.anteile_anzeigen.checked ? '1' : '0'}); });
     var f4 = h('form', null,
       h('div', {class:'grid3'},
         field('Empfänger ', inp('zahlung_name', s.zahlung_name, {maxlength:70, placeholder:'Vor- und Nachname', autocomplete:'off'}), '(genau wie bei der Bank)'),
@@ -471,7 +472,7 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
       h('div', {class:'head'}, h('div', null, h('h1', {text:'Verkauf'}), h('p', {class:'muted'}, 'Gerade auf der Website: ', h('span', {class:'pill'}, h('i', {style:'background:' + m[1]}), m[0])))),
       h('div', {class:'card'}, h('h2', {text:'Bestellen und Preise'}), h('p', {class:'muted', text:'Bestellen lässt sich erst öffnen, wenn ein Preis eingetragen ist. Preise gelten nur für neue Bestellungen.'}), f1),
       h('div', {class:'card'}, h('h2', {text:'Lager'}), h('p', {class:'muted', text:'Optional. Wenn ihr Stückzahlen eintragt, kann niemand mehr bestellen, als da ist.'}), f2),
-      h('div', {class:'card'}, h('h2', {text:'Anteilsscheine'}), h('p', {class:'muted', text:'Auf der Website steht „noch X von 80 frei“. Das rechnet sich aus den eingetragenen Anteilsscheinen.'}), f3),
+      h('div', {class:'card'}, h('h2', {text:'Anteilsscheine'}), h('p', {class:'muted', text:'„Verkauft“ rechnet sich aus den eingetragenen Anteilsscheinen. Ob die Website zeigt, wie viele noch frei sind, stellst du mit dem Schalter ein.'}), f3),
       h('div', {class:'card'}, h('h2', {text:'Zahlungsdaten für den QR-Code'}), h('p', {class:'muted', text:'Kommen in den Zahlungs-QR-Code bei den Anteilsscheinen. Stehen nie auf der öffentlichen Website. Der Empfänger muss genau so heißen wie der Kontoinhaber bei der Bank, sonst warnt die Banking-App beim Überweisen („Name passt nicht zur IBAN“).'}), f4)
     );
   }
