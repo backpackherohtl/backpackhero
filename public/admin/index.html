@@ -171,6 +171,9 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
 .zs .qr p{font-size:15px;color:var(--text-2)}
 .zs dl{margin:0;display:grid;grid-template-columns:130px 1fr;gap:6px 14px;font-size:15px}
 .zs dt{color:var(--text-2)}.zs dd{margin:0;overflow-wrap:anywhere;font-weight:600}
+.zs .qr.gross{grid-template-columns:1fr;justify-items:center;text-align:center}
+.zs .qr.gross svg{width:min(320px,100%);height:auto;aspect-ratio:1}
+.zs .betrag{font-size:44px;font-weight:900;letter-spacing:-.02em;line-height:1}
 .zs .fuss{font-size:13px;color:var(--text-2);border-top:1px solid var(--hell-2);padding-top:12px}
 @media (max-width:620px){ .zs{padding:18px} .zs .qr{grid-template-columns:1fr;justify-items:center;text-align:center} .zs dl{grid-template-columns:1fr} .zs dt{margin-top:6px} }
 @media print{
@@ -180,6 +183,8 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
   body.ov-open .ov-box{box-shadow:none;background:none;padding:0;max-width:none}
   body.ov-open .zs{border:0;padding:0;max-width:170mm}
   body.ov-open .zs .qr svg{width:60mm;height:60mm}
+  body.ov-open .zs .qr.gross svg{width:90mm;height:90mm}
+  body.ov-open .ov-box .chips{display:none}
 }
 
 @media (max-width:960px){
@@ -532,10 +537,12 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
     var s = D.s, ges = parseInt(s.anteile_gesamt, 10) || 0, verk = parseInt(s.anteile_verkauft, 10) || 0;
     var wrap = h('div', {class:'panel'},
       h('div', {class:'head'}, h('div', null, h('h1', {text:'Anteilsscheine'}), h('p', {class:'muted', text: verk + ' von ' + ges + ' verkauft, ' + Math.max(0, ges - verk) + ' noch frei. Zählt nur, was hier bezahlt eingetragen ist.'})),
+        h('div', {class:'row'},
+        h('button', {class:'btn', type:'button', text:'Zahlungs-QR 10 / 20 / 25 €', onclick:function(){ zahlQRFrei(10); }}),
         h('button', {class:'btn leer', type:'button', text:'Als Tabelle (CSV)', onclick:function(){
           if(!shares) return;
           download('anteilsscheine-' + D.heute + '.csv', csv([['Nr','Datum','Name','E-Mail','Telefon','Adresse','Anzahl','Betrag','Status','Zahlung','Woher','Nachricht','Notiz']].concat(shares.map(function(a){ return [nrBereich(a.nr, a.anzahl), ts(a.created_at), a.name, a.email, a.telefon, a.adresse, a.anzahl, (a.anzahl * 10) + ' €', a.status, ZTEXT[a.zahlart || ''], a.quelle === 'manuell' ? 'selbst eingetragen' : 'Website', a.nachricht, a.notiz]; }))), 'text/csv;charset=utf-8');
-        }})),
+        }}))),
       h('div', {class:'note'}, 'Jeder verkaufte Anteilsschein muss hier eingetragen sein, sonst zählt er nicht. Wer 2 kauft, bekommt 2 Nummern. Sobald das Geld da ist, auf „Bezahlt“ stellen.'),
       jaHinweis ? jaNote() : null,
       neuAnteil(),
@@ -726,10 +733,11 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
   /* ---------- Zahlungs-QR (EPC-QR-Code, „Zahlen mit Code“) ---------- */
   // Aufbau laut EPC069-12: BCD, Version 002, UTF-8, SCT, BIC (optional), Name, IBAN, Betrag, Zweck, Referenz, Text
   function zweck(a){ return ('Backpack Hero ' + nrKurz(a.nr, a.anzahl) + ' Anteilsschein ' + a.name).replace(/\s+/g, ' ').slice(0, 140); }
-  function epc(a){
+  function epcRoh(euroBetrag, text){
     var s = D.s;
-    return ['BCD', '002', '1', 'SCT', (s.zahlung_bic || '').toUpperCase(), s.zahlung_name.slice(0, 70), s.zahlung_iban.replace(/\s+/g, '').toUpperCase(), 'EUR' + (a.anzahl * 10).toFixed(2), '', '', zweck(a)].join('\n');
+    return ['BCD', '002', '1', 'SCT', (s.zahlung_bic || '').toUpperCase(), s.zahlung_name.slice(0, 70), s.zahlung_iban.replace(/\s+/g, '').toUpperCase(), 'EUR' + euroBetrag.toFixed(2), '', '', text || ''].join('\n').replace(/\n+$/, '');
   }
+  function epc(a){ return epcRoh(a.anzahl * 10, zweck(a)); }
   function qrMatrix(text){ var q = qrcode(0, 'M'); q.addData(text, 'Byte'); q.make(); return q; }
   function qrSvg(q){
     var n = q.getModuleCount(), rand = 4, d = '';
@@ -754,19 +762,23 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
       'Sobald das Geld da ist, melden wir uns bei dir.\n\nLiebe Grüße\nBackpack Hero Junior Company\ninfo@backpackhero.at';
   }
   function zahlPng(a, q){
+    var s = D.s;
+    return zahlPngRoh(q, (a.anzahl > 1 ? 'Anteilsscheine ' : 'Anteilsschein ') + nrKurz(a.nr, a.anzahl),
+      [['Empfänger', s.zahlung_name], ['IBAN', fmtIban(s.zahlung_iban)]].concat(s.zahlung_bic ? [['BIC', s.zahlung_bic]] : []).concat([['Betrag', betragText(a)], ['Zweck', zweck(a)]]));
+  }
+  function zahlPngRoh(q, titel, rows){
     var W = 1200, H = 1500, c = document.createElement('canvas'); c.width = W; c.height = H;
     var x = c.getContext('2d');
     x.fillStyle = '#F3F0E8'; x.fillRect(0, 0, W, H);
     x.fillStyle = '#fff'; x.beginPath(); if(x.roundRect) x.roundRect(60, 60, W - 120, H - 120, 40); else x.rect(60, 60, W - 120, H - 120); x.fill();
     [['#C8412F', 0], ['#E2B13C', 1], ['#2F7A4D', 2]].forEach(function(p){ x.fillStyle = p[0]; x.beginPath(); x.arc(130 + p[1] * 26, 152, 9, 0, 7); x.fill(); });
     x.fillStyle = '#55514A'; x.font = '700 26px Archivo, sans-serif'; x.fillText('BACKPACK HERO JUNIOR COMPANY', 210, 161);
-    x.fillStyle = '#15171A'; x.font = '800 64px Archivo, sans-serif'; x.fillText((a.anzahl > 1 ? 'Anteilsscheine ' : 'Anteilsschein ') + nrKurz(a.nr, a.anzahl), 120, 260);
+    x.fillStyle = '#15171A'; x.font = '800 64px Archivo, sans-serif'; x.fillText(titel, 120, 260);
     x.fillStyle = '#55514A'; x.font = '400 34px Archivo, sans-serif'; x.fillText('Mit der Banking-App scannen, dann ist alles ausgefüllt.', 120, 315);
     var n = q.getModuleCount() + 8, size = 640, cell = Math.floor(size / n), qs = cell * n, ox = Math.round((W - qs) / 2), oy = 370;
     x.fillStyle = '#fff'; x.fillRect(ox, oy, qs, qs); x.fillStyle = '#15171A';
     for(var r = 0; r < n - 8; r++) for(var col = 0; col < n - 8; col++) if(q.isDark(r, col)) x.fillRect(ox + (col + 4) * cell, oy + (r + 4) * cell, cell, cell);
-    var y = oy + qs + 90, s = D.s;
-    var rows = [['Empfänger', s.zahlung_name], ['IBAN', fmtIban(s.zahlung_iban)]].concat(s.zahlung_bic ? [['BIC', s.zahlung_bic]] : []).concat([['Betrag', betragText(a)], ['Zweck', zweck(a)]]);
+    var y = oy + qs + 90;
     rows.forEach(function(rw){
       x.fillStyle = '#55514A'; x.font = '400 32px Archivo, sans-serif'; x.fillText(rw[0], 120, y);
       x.fillStyle = '#15171A'; x.font = '700 34px Archivo, sans-serif';
@@ -814,6 +826,53 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
           mailHref ? h('a', {class:'btn klein leer', href: mailHref, text:'Mail vorbereiten'}) : null),
         h('p', {class:'muted small ov-acts', text: a.email ? '„Mail vorbereiten“ öffnet eine fertige Mail. Das Bild musst du selbst anhängen: erst „Als Bild speichern“, dann in die Mail ziehen.' : 'Keine E-Mail-Adresse eingetragen: ausdrucken oder das Bild zum Beispiel per WhatsApp schicken.'})));
     document.body.appendChild(ov); document.body.classList.add('ov-open'); document.addEventListener('keydown', esc);
+  }
+
+  /* ---------- Allgemeiner Zahlungs-QR (10, 20 oder 25 €, ohne Verwendungszweck) ---------- */
+  function zahlQRFrei(betrag){
+    var s = D.s;
+    if(!s.zahlung_name || !s.zahlung_iban){ toast('Zuerst unter „Verkauf → Zahlungsdaten“ Empfänger und IBAN eintragen.', true); go('verkauf'); return; }
+    var q, qrBox = h('div', {class:'qr gross'}), betragEl = h('div', {class:'betrag'}), ddBetrag = h('dd');
+    var chips = h('div', {class:'chips', role:'group', 'aria-label':'Betrag'});
+    function setze(b){
+      try { q = qrMatrix(epcRoh(b, '')); } catch(e){ toast('QR-Code konnte nicht erstellt werden.', true); return; }
+      betrag = b;
+      qrBox.textContent = ''; qrBox.appendChild(qrSvg(q));
+      betragEl.textContent = b + ',00 €'; ddBetrag.textContent = b + ',00 €';
+      [].forEach.call(chips.children, function(c){ c.setAttribute('aria-pressed', c.getAttribute('data-b') === String(b) ? 'true' : 'false'); });
+    }
+    [10, 20, 25].forEach(function(b){ chips.appendChild(h('button', {class:'chip', type:'button', 'data-b': String(b), text: b + ' €', onclick:function(){ setze(b); }})); });
+    var dots = h('span', {class:'dots'}, h('i', {style:'background:var(--rot)'}), h('i', {style:'background:var(--gelb)'}), h('i', {style:'background:var(--gruen)'}));
+    var sheet = h('div', {class:'zs'},
+      h('div', {class:'k'}, dots, 'Backpack Hero Junior Company'),
+      betragEl,
+      qrBox,
+      h('p', {class:'muted', style:'text-align:center', text:'Mit der Banking-App scannen („Scannen“ oder „Zahlen mit Code“). Empfänger, IBAN und Betrag sind dann schon ausgefüllt.'}),
+      h('dl', null,
+        h('dt', {text:'Empfänger'}), h('dd', {text: s.zahlung_name}),
+        h('dt', {text:'IBAN'}), h('dd', {text: fmtIban(s.zahlung_iban)}),
+        s.zahlung_bic ? h('dt', {text:'BIC'}) : null, s.zahlung_bic ? h('dd', {text: s.zahlung_bic}) : null,
+        h('dt', {text:'Betrag'}), ddBetrag),
+      h('div', {class:'fuss', text:'Ordnung, die mitgeht. · info@backpackhero.at'}));
+    var ov;
+    function zu(){ ov.remove(); document.body.classList.remove('ov-open'); document.removeEventListener('keydown', esc); }
+    function esc(e){ if(e.key === 'Escape') zu(); }
+    ov = h('div', {class:'ov', role:'dialog', 'aria-modal':'true', 'aria-label':'Zahlungs-QR', onclick:function(e){ if(e.target === ov) zu(); }},
+      h('div', {class:'ov-box'},
+        h('div', {class:'head ov-head'}, h('h2', {text:'Zahlungs-QR'}), h('button', {class:'btn klein leer', type:'button', text:'Schließen', onclick:zu})),
+        chips,
+        sheet,
+        h('div', {class:'row ov-acts'},
+          h('button', {class:'btn klein', type:'button', text:'Als Bild speichern', onclick:function(){
+            (document.fonts && document.fonts.load ? Promise.all([document.fonts.load('800 64px Archivo'), document.fonts.load('400 32px Archivo'), document.fonts.load('700 34px Archivo')]) : Promise.resolve()).then(function(){
+              var rows = [['Empfänger', s.zahlung_name], ['IBAN', fmtIban(s.zahlung_iban)]].concat(s.zahlung_bic ? [['BIC', s.zahlung_bic]] : []).concat([['Betrag', betrag + ',00 €']]);
+              zahlPngRoh(q, 'Überweisung ' + betrag + ' €', rows).toBlob(function(bl){ var l = h('a', {href: URL.createObjectURL(bl), download: 'Zahlung-' + betrag + 'EUR.png'}); document.body.appendChild(l); l.click(); setTimeout(function(){ URL.revokeObjectURL(l.href); l.remove(); }, 500); }, 'image/png');
+            });
+          }}),
+          h('button', {class:'btn klein leer', type:'button', text:'Drucken', onclick:function(){ window.print(); }})),
+        h('p', {class:'muted small ov-acts', text:'Ohne Verwendungszweck: Wer gezahlt hat, siehst du am Kontoauszug nur am Namen des Absenders. Darum den Namen gleich notieren, bei Anteilsscheinen direkt unter „Anteilsschein eintragen“ mit Zahlungsart Überweisung.'})));
+    document.body.appendChild(ov); document.body.classList.add('ov-open'); document.addEventListener('keydown', esc);
+    setze([10, 20, 25].indexOf(betrag) >= 0 ? betrag : 10);
   }
 
   /* ---------- Mail-Liste ---------- */
