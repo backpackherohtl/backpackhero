@@ -45,6 +45,20 @@ h1 em{font-style:normal;color:var(--gruen)}
 @keyframes puls{50%{transform:scale(1.05)}}
 .rekord{font-size:14px;color:var(--grau);margin-top:12px;min-height:18px}
 
+/* Erklärung */
+#erklaer{justify-content:space-between;align-items:center;text-align:center}
+.schritte{display:flex;flex-direction:column;gap:18px;width:100%;max-width:400px;text-align:left}
+.schritt{display:flex;gap:14px;align-items:flex-start}
+.schritt .nr{flex:none;width:34px;height:34px;border-radius:50%;background:var(--dunkel);color:var(--hell);font-weight:800;font-size:17px;display:flex;align-items:center;justify-content:center}
+.schritt b{display:block;font-weight:800;font-size:19px;line-height:1.2}
+.schritt p{font-size:15px;line-height:1.4;color:var(--grau);margin-top:3px}
+.mini-karte{background:#fff;border-radius:10px;padding:9px 12px;box-shadow:0 6px 14px rgba(21,23,26,.12);margin-top:8px;display:inline-block;transform:rotate(-2deg)}
+.mini-karte b{font-size:16px}.mini-karte span{display:block;font-size:14px;color:var(--grau)}
+.zuordnung{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:8px}
+.zuordnung div{border-radius:12px;padding:9px 6px;font-size:13px;line-height:1.25;text-align:center;color:#fff}
+.zuordnung b{font-size:14px}
+#losBtn{animation:puls 1.6s ease-in-out infinite}
+
 /* Countdown */
 #count{align-items:center;justify-content:center;text-align:center;gap:26px}
 #countZahl{font-weight:800;font-size:150px;line-height:1}
@@ -84,6 +98,7 @@ h1 em{font-style:normal;color:var(--gruen)}
 @keyframes richtig{30%{transform:translateY(-12px) scale(1.06);filter:brightness(1.25)}}
 .fach.zeigen{animation:zeigen .9s}
 @keyframes zeigen{0%,100%{box-shadow:inset 0 -6px 0 rgba(0,0,0,.14),0 0 0 0 var(--dunkel)}30%,70%{box-shadow:inset 0 -6px 0 rgba(0,0,0,.14),0 0 0 5px var(--dunkel)}}
+.fach small{display:block;font-weight:400;font-size:12px;line-height:1.2;opacity:.92;margin-top:4px}
 .fach .zahl{position:absolute;top:10px;font-size:13px;opacity:.85}
 #zeitUm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:64px;opacity:0;pointer-events:none;transition:opacity .2s}
 #zeitUm.on{opacity:1}
@@ -124,6 +139,28 @@ h1 em{font-style:normal;color:var(--gruen)}
   </div>
 </section>
 
+<section class="screen" id="erklaer">
+  <div>
+    <div class="kicker"><span class="dots"><i></i><i></i><i></i></span>So geht's</div>
+    <h1 style="margin-top:10px;font-size:40px">Jeder Zettel<br>ins richtige <em>Fach.</em></h1>
+  </div>
+  <div class="schritte">
+    <div class="schritt"><div class="nr">1</div><div><b>Oben kommt ein Zettel.</b><p>Lies, wie weit die Aufgabe ist.</p>
+      <div class="mini-karte"><b>Mathe-HÜ</b><span>halb fertig</span></div><span style="margin-left:12px;font-weight:800;font-size:15px">→ gehört zu <span style="background:var(--gelb);border-radius:999px;padding:3px 10px">Gelb</span></span></div></div>
+    <div class="schritt"><div class="nr">2</div><div><b>Tipp unten aufs richtige Fach.</b><p>Oder zieh den Zettel mit dem Finger hinein.</p>
+      <div class="zuordnung">
+        <div style="background:var(--rot)"><b>Rot</b><br>noch nicht angefangen</div>
+        <div style="background:var(--gelb);color:var(--dunkel)"><b>Gelb</b><br>angefangen, halb fertig</div>
+        <div style="background:var(--gruen)"><b>Grün</b><br>fertig, erledigt</div>
+      </div></div></div>
+    <div class="schritt"><div class="nr">3</div><div><b>25 Sekunden. So viele wie möglich.</b><p>Jeder richtige Zettel bringt einen Punkt. Falsche landen im Chaos.</p></div></div>
+  </div>
+  <div class="unten">
+    <button class="pill" id="losBtn">Los geht's</button>
+    <div class="auto">Hier tippen, wenn du bereit bist</div>
+  </div>
+</section>
+
 <section class="screen" id="count">
   <div class="regel">
     <div><i style="background:var(--rot)"></i><span><b>Rot</b> · noch zu tun</span></div>
@@ -131,7 +168,7 @@ h1 em{font-style:normal;color:var(--gruen)}
     <div><i style="background:var(--gruen)"></i><span><b>Grün</b> · erledigt</span></div>
   </div>
   <div id="countZahl">3</div>
-  <p class="sub" style="margin:0">Ziehen oder aufs Fach tippen.</p>
+  <p class="sub" style="margin:0">Tipp aufs richtige Fach.</p>
 </section>
 
 <section class="screen" id="spiel">
@@ -146,9 +183,9 @@ h1 em{font-style:normal;color:var(--gruen)}
     <div id="zeitUm">Zeit!</div>
   </div>
   <div class="faecher" id="faecher">
-    <div class="fach" data-f="rot"><span class="zahl">1</span><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="17" cy="17" r="12"/></svg>Noch<br>zu tun</div>
-    <div class="fach" data-f="gelb"><span class="zahl">2</span><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="17" cy="17" r="12"/><path d="M17 5a12 12 0 0 1 0 24z" fill="currentColor"/></svg>Ange-<br>fangen</div>
-    <div class="fach" data-f="gruen"><span class="zahl">3</span><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="17" cy="17" r="12"/><path d="M11.5 17.5l3.8 3.8 7.5-8"/></svg>Erledigt</div>
+    <div class="fach" data-f="rot"><span class="zahl">1</span><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="17" cy="17" r="12"/></svg><span>Noch zu tun<small>nicht angefangen</small></span></div>
+    <div class="fach" data-f="gelb"><span class="zahl">2</span><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="17" cy="17" r="12"/><path d="M17 5a12 12 0 0 1 0 24z" fill="currentColor"/></svg><span>Angefangen<small>halb fertig</small></span></div>
+    <div class="fach" data-f="gruen"><span class="zahl">3</span><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="17" cy="17" r="12"/><path d="M11.5 17.5l3.8 3.8 7.5-8"/></svg><span>Erledigt<small>fertig</small></span></div>
   </div>
 </section>
 
@@ -176,7 +213,7 @@ h1 em{font-style:normal;color:var(--gruen)}
 'use strict';
 var DAUER = 25, ENDE_ZURUECK = 25;
 var $ = function(id){ return document.getElementById(id); };
-var screens = ['start','count','spiel','ende'];
+var screens = ['start','erklaer','count','spiel','ende'];
 function zeige(id){ screens.forEach(function(s){ $(s).classList.toggle('on', s === id); }); }
 
 /* Tagesrekord nur auf diesem Gerät */
@@ -245,7 +282,7 @@ function starteSpiel(){
   $('punkte').textContent = '0'; $('haufen').innerHTML = ''; $('zeit').classList.remove('knapp');
   $('zeitBalken').style.transform = 'scaleX(1)'; $('sek').textContent = DAUER;
   zeige('spiel');
-  laeuft = true; gesperrt = false; startZeit = performance.now();
+  laeuft = true; gesperrt = false; startZeit = performance.now(); letzteAktion = startZeit; leerHinweis = false;
   naechsteKarte();
   requestAnimationFrame(tick);
 }
@@ -257,6 +294,7 @@ function tick(now){
   $('sek').textContent = Math.ceil(rest);
   if (rest <= 5) $('zeit').classList.add('knapp');
   if (rest <= 0) return spielEnde();
+  if (!leerHinweis && !gesperrt && now - letzteAktion > 4000) { leerHinweis = true; hinweis('Tipp unten aufs richtige Fach', 2000); faecherZeigen(); }
   requestAnimationFrame(tick);
 }
 
@@ -274,6 +312,12 @@ function naechsteKarte(){
   ziehen(karte);
 }
 
+var hinweisTimer = null, letzteAktion = 0, leerHinweis = false;
+function hinweis(text, ms){
+  var h = $('hinweis'); h.textContent = text; h.classList.add('on');
+  clearTimeout(hinweisTimer); hinweisTimer = setTimeout(function(){ h.classList.remove('on'); }, ms || 1400);
+}
+function faecherZeigen(){ faecher.forEach(function(f){ f.classList.remove('zeigen'); void f.offsetWidth; f.classList.add('zeigen'); }); }
 function setze(el, x, y, r){ el.style.transform = 'translate(' + x + 'px,' + y + 'px) rotate(' + r + 'deg)'; }
 
 function fachUnter(x, y){
@@ -308,6 +352,7 @@ function ziehen(el){
       f = faecher[e.clientX < w / 3 ? 0 : e.clientX < w * 2 / 3 ? 1 : 2];
     }
     if (f) return einordnen(f);
+    if (Math.abs(dx) < 12 && Math.abs(dy) < 12) { hinweis('Tipp unten aufs richtige Fach'); faecherZeigen(); letzteAktion = performance.now(); }
     el.style.transition = 'transform .25s cubic-bezier(.2,.9,.3,1.2)';
     setze(el, 0, 0, +el.dataset.rot);
   }
@@ -321,7 +366,7 @@ faecher.forEach(function(f){
 
 function einordnen(f){
   if (gesperrt) return;
-  gesperrt = true;
+  gesperrt = true; letzteAktion = performance.now(); leerHinweis = false;
   var el = karte, z = zettel, richtig = f.dataset.f === z.f;
   gesamt++;
   var kr = el.getBoundingClientRect(), fr = f.getBoundingClientRect();
@@ -345,8 +390,7 @@ function einordnen(f){
     falsch++;
     var soll = document.querySelector('.fach[data-f=' + z.f + ']');
     soll.classList.remove('zeigen'); void soll.offsetWidth; soll.classList.add('zeigen');
-    var h = $('hinweis'); h.textContent = 'Gehört zu „' + NAMEN[z.f] + '“'; h.classList.add('on');
-    setTimeout(function(){ h.classList.remove('on'); }, 900);
+    hinweis('Gehört zu „' + NAMEN[z.f] + '“', 1100);
     el.style.transition = 'transform .12s'; setze(el, 0, 0, +el.dataset.rot);
     el.classList.add('wackeln');
     setTimeout(function(){
@@ -418,8 +462,10 @@ function ergebnis(){
 
 function zumStart(){ clearInterval(zurueckTimer); rekordAnzeigen(); zeige('start'); }
 
-$('tippe').addEventListener('click', starteCountdown);
-$('start').addEventListener('click', function(e){ if (e.target.id !== 'tippe') starteCountdown(); });
+var erklaerTimer = null;
+function zeigeErklaerung(){ wachHalten(); zeige('erklaer'); clearTimeout(erklaerTimer); erklaerTimer = setTimeout(zumStart, 45000); }
+$('start').addEventListener('click', zeigeErklaerung);
+$('losBtn').addEventListener('click', function(e){ e.stopPropagation(); clearTimeout(erklaerTimer); starteCountdown(); });
 $('nochmal').addEventListener('click', function(){ clearInterval(zurueckTimer); starteCountdown(); });
 document.addEventListener('gesturestart', function(e){ e.preventDefault(); });
 document.addEventListener('contextmenu', function(e){ e.preventDefault(); });

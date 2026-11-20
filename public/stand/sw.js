@@ -1,6 +1,6 @@
 // Stand-Spiel offline verfügbar machen: Seite wird beim ersten Laden gemerkt.
 // Mit Netz holt sie sich immer die neueste Version, ohne Netz kommt die gemerkte.
-const CACHE = 'bh-stand-v3';
+const CACHE = 'bh-stand-v4';
 const SEITE = '/stand/';
 
 self.addEventListener('install', (e) => {
