@@ -524,8 +524,11 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
           h('button', {class:'btn klein', type:'button', text:'Speichern', onclick:function(){
             if(sel.value === 'storniert' && o.status !== 'storniert' && !confirm('Bestellung ' + o.nr + ' wirklich stornieren?')) return;
             api('PUT', 'bestellungen/' + o.id, {status: sel.value, notiz: notiz.value}).then(function(){ toast('Bestellung ' + o.nr + ' gespeichert.'); load(); }).catch(fail); }}),
+          o.status !== 'storniert' ? h('button', {class:'btn klein leer', type:'button', text:'Rechnung (PDF)', onclick:function(e){
+            var b = e.currentTarget; b.disabled = true;
+            rechnung(o).catch(function(err){ toast('PDF ging nicht: ' + (err && err.message || err), true); }).then(function(){ b.disabled = false; }); }}) : null,
           h('a', {class:'btn klein leer', href:mail, text:'Kunden anschreiben'})),
-        h('p', {class:'muted small', text:'Rechnung mit Rechnungsnummer ' + o.nr + ' und Junior-Hinweis aus dem Gmail schicken.' + (o.lieferart === 'Versand' ? ' Versand erst nach Zahlungseingang.' : '')})
+        h('p', {class:'muted small', text:'„Rechnung (PDF)“ herunterladen und mit „Kunden anschreiben“ als Anhang aus dem Gmail schicken. Ist die Bestellung bezahlt, steht auf der Rechnung „Bezahlt“ statt Zahlungsinfos.' + (o.lieferart === 'Versand' ? ' Versand erst nach Zahlungseingang.' : '')})
       ));
   }
 
@@ -727,6 +730,37 @@ td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
       var l = h('a', {href:url, download:datei}); document.body.appendChild(l); l.click();
       setTimeout(function(){ URL.revokeObjectURL(url); l.remove(); }, 2000);
       toast('Optionsschein ' + nrKurz(a.nr, a.anzahl) + ' heruntergeladen.' + (a.telefon && a.adresse ? '' : ' Fehlendes einfach mit der Hand ausfüllen.'));
+    });
+  }
+
+  /* ---------- Rechnung (PDF im Backpack-Hero-Design, Aufbau in rechnung.js) ---------- */
+  // USt-Zeile („darin enthalten 20 % USt“) laut Junior-Handbuch. Falls der Lehrer „ohne USt“ sagt: auf false stellen
+  var RECHNUNG_UST = true;
+  var rechnungLaden = null;
+  function ladeSkript(src, glob){
+    return new Promise(function(ok, nein){ if(window[glob]) return ok(window[glob]); var sc = h('script', {src:src}); sc.onload = function(){ window[glob] ? ok(window[glob]) : nein(new Error(src + ' unvollständig')); }; sc.onerror = function(){ nein(new Error(src + ' nicht geladen')); }; document.head.appendChild(sc); });
+  }
+  function holeDatei(p){ return fetch(p, {credentials:'same-origin'}).then(function(r){ if(!r.ok) throw new Error(p + ' fehlt'); return r.arrayBuffer(); }); }
+  function ladeRechnung(){
+    if(!rechnungLaden) rechnungLaden = Promise.all([ladePdfLib(), ladeSkript('/admin/rechnung.js', 'bhRechnungPdf'),
+      // Schrift Archivo. Lädt sie nicht, nimmt das PDF Helvetica, die Rechnung geht trotzdem
+      Promise.all([ladeSkript('/admin/fontkit.umd.min.js', 'fontkit'), holeDatei('/admin/fonts/Archivo-Regular.ttf'), holeDatei('/admin/fonts/Archivo-SemiBold.ttf'), holeDatei('/admin/fonts/Archivo-ExtraBold.ttf')]).catch(function(){ return null; })
+    ]).catch(function(e){ rechnungLaden = null; throw e; });
+    return rechnungLaden;
+  }
+  function dateiTeil(t){ return String(t || '').replace(/ß/g, 'ss').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9-]+/g, '_').replace(/^_+|_+$/g, ''); }
+  function rechnung(o){
+    var s = D.s;
+    if(!s.zahlung_name || !s.zahlung_iban){ toast('Zuerst unter „Verkauf → Zahlungsdaten“ Empfänger und IBAN eintragen.', true); go('verkauf'); return Promise.resolve(); }
+    return ladeRechnung().then(function(x){
+      var fk = x[2], q = null;
+      try { q = qrMatrix(epcRoh(o.summe_cent / 100, 'Backpack Hero ' + o.nr)); } catch(e){ q = null; }
+      return x[1](x[0], fk ? fk[0] : null, fk ? {reg:fk[1], semi:fk[2], bold:fk[3]} : null, o, {name:s.zahlung_name, iban:s.zahlung_iban, bic:s.zahlung_bic, qr:q, ust:RECHNUNG_UST});
+    }).then(function(bytes){
+      var url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
+      var l = h('a', {href:url, download:'Rechnung-' + o.nr + '-' + dateiTeil(o.name) + '.pdf'}); document.body.appendChild(l); l.click();
+      setTimeout(function(){ URL.revokeObjectURL(url); l.remove(); }, 2000);
+      toast('Rechnung ' + o.nr + ' heruntergeladen.');
     });
   }
 
